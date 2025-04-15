@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge, Searchbar, IconButton } from 'react-native-paper';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,7 @@ import { ThemedView } from '@/components/ThemedComponents';
 import { WallpaperCard } from '@/components/ui/WallpaperCard';
 import { wallhavenAPI, WallpaperPreview, SearchParams } from '../services/wallhaven';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -19,7 +20,7 @@ const featuredCollections = [
     icon: 'leaf.fill', 
     color: '#4CAF50', 
     query: 'nature',
-    imageUrl: 'https://w.wallhaven.cc/full/9d/wallhaven-9djej1.jpg'
+    imageUrl: 'https://w.wallhaven.cc/full/m3/wallhaven-m3oq1m.jpg'
   },
   { 
     id: '2', 
@@ -35,7 +36,7 @@ const featuredCollections = [
     icon: 'square.fill', 
     color: '#607D8B', 
     query: 'minimal',
-    imageUrl: 'https://w.wallhaven.cc/full/4x/wallhaven-4xjrl9.jpg'
+    imageUrl: 'https://w.wallhaven.cc/full/yx/wallhaven-yxq7kd.jpg'
   },
   { 
     id: '4', 
@@ -51,7 +52,7 @@ const featuredCollections = [
     icon: 'moon.fill', 
     color: '#212121', 
     query: 'dark',
-    imageUrl: 'https://w.wallhaven.cc/full/4g/wallhaven-4g6e1l.jpg'
+    imageUrl: 'https://w.wallhaven.cc/full/we/wallhaven-we62dr.jpg'
   },
   { 
     id: '6', 
@@ -59,7 +60,7 @@ const featuredCollections = [
     icon: 'sparkles.fill', 
     color: '#E91E63', 
     query: 'anime',
-    imageUrl: 'https://w.wallhaven.cc/full/pk/wallhaven-pkw77p.jpg'
+    imageUrl: 'https://w.wallhaven.cc/full/ex/wallhaven-ex9gwo.png'
   },
 ];
 
@@ -74,6 +75,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPurity, setSelectedPurity] = useState('sfw');
+  const [showNsfwContent, setShowNsfwContent] = useState(false);
 
   const categories = [
     { id: 'all', label: 'All' },
@@ -82,11 +84,47 @@ export default function HomeScreen() {
     { id: 'people', label: 'People' },
   ];
 
-  const purityLevels = [
+  const allPurityLevels = [
     { id: 'sfw', label: 'SFW' },
     { id: 'sketchy', label: 'Sketchy' },
     { id: 'nsfw', label: 'NSFW' },
   ];
+
+  // Filter purity levels based on NSFW setting
+  const purityLevels = showNsfwContent ? allPurityLevels : [{ id: 'sfw', label: 'SFW' }];
+
+  // Add useEffect to check for changes in NSFW settings and reload data
+  useEffect(() => {
+    // Monitor changes to showNsfwContent
+    const checkNsfwSettingChanges = async () => {
+      try {
+        const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
+        const newSetting = nsfwSetting === 'true';
+        
+        if (newSetting !== showNsfwContent) {
+          setShowNsfwContent(newSetting);
+          console.log('NSFW setting updated:', newSetting);
+          
+          // Force reload of purity levels
+          if (!newSetting && (selectedPurity === 'sketchy' || selectedPurity === 'nsfw')) {
+            setSelectedPurity('sfw');
+          }
+          
+          // Reload wallpapers to apply new settings
+          loadWallpapers();
+        }
+      } catch (error) {
+        console.error('Failed to check NSFW setting changes:', error);
+      }
+    };
+    
+    // Initial load
+    checkNsfwSettingChanges();
+    
+    // Check for setting changes when the component is focused
+    const interval = setInterval(checkNsfwSettingChanges, 1000);
+    return () => clearInterval(interval);
+  }, [showNsfwContent]);
 
   useEffect(() => {
     // Set the API key directly 
@@ -172,11 +210,26 @@ export default function HomeScreen() {
   const loadWallpapers = async () => {
     try {
       setLoading(true);
+      
+      // Check if trying to access NSFW content without API key
+      if ((selectedPurity === 'nsfw' || selectedPurity === 'sketchy') && !wallhavenAPI.hasApiKey()) {
+        Alert.alert(
+          'API Key Required', 
+          'You need to set a Wallhaven API key in Settings to access NSFW content.',
+          [
+            { text: 'OK', onPress: () => setSelectedPurity('sfw') }
+          ]
+        );
+        setLoading(false);
+        return;
+      }
+      
       const response = await wallhavenAPI.search({
         q: searchQuery,
         categories: selectedCategory === 'all' ? '111' : selectedCategory === 'general' ? '100' : selectedCategory === 'anime' ? '010' : '001',
         purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001',
       });
+      
       setFeaturedWallpapers(response.data.slice(0, 5));
       setLatestWallpapers(response.data.slice(5, 11));
       setTopWallpapers(response.data.slice(11, 17));
@@ -240,8 +293,8 @@ export default function HomeScreen() {
       <StatusBar style="auto" />
       <Stack.Screen
         options={{
-          headerShown: true,
-          title: 'Fresco',
+          headerShown: false,
+          title: 'Shiori',
           headerShadowVisible: false,
           headerTitleStyle: styles.headerTitle,
           headerStyle: { backgroundColor: theme.colors.background },
@@ -388,6 +441,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: 20,
+    height: 15,
   },
   header: {
     flexDirection: 'row',

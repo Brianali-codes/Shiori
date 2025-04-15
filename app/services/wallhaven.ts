@@ -81,14 +81,6 @@ export interface SearchParams {
 class WallhavenAPI {
   private baseURL = 'https://wallhaven.cc/api/v1';
   private apiKey?: string;
-  // Enable proxy for CORS issues
-  private useProxy = true;
-  // Multiple proxy options for fallback
-  private proxyURLs = [
-    'https://corsproxy.io/?',
-    'https://api.codetabs.com/v1/proxy?quest='
-  ];
-  private currentProxyIndex = 0;
   
   constructor(apiKey?: string) {
     this.apiKey = apiKey;
@@ -99,23 +91,8 @@ class WallhavenAPI {
     return this;
   }
 
-  // Get the current proxy URL
-  private getProxyURL(): string {
-    return this.proxyURLs[this.currentProxyIndex];
-  }
-
-  // Switch to next proxy if current one fails
-  private switchProxy(): void {
-    this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyURLs.length;
-    console.log(`Switching to proxy: ${this.getProxyURL()}`);
-  }
-
-  // Build URL with or without proxy
-  private buildURL(endpoint: string): string {
-    if (this.useProxy) {
-      return `${this.getProxyURL()}${encodeURIComponent(endpoint)}`;
-    }
-    return endpoint;
+  hasApiKey(): boolean {
+    return !!this.apiKey && this.apiKey.trim() !== '';
   }
 
   private getParams(params: Record<string, any> = {}): Record<string, any> {
@@ -126,110 +103,67 @@ class WallhavenAPI {
   }
 
   async search(params: SearchParams = {}): Promise<WallhavenSearchResponse> {
-    // Try each proxy until one works or all fail
-    for (let attempt = 0; attempt < this.proxyURLs.length; attempt++) {
-      try {
-        // Construct query parameters
-        const queryParams = this.getParams({
-          ...params,
-          categories: params.categories || '111', // Default to all categories
-          purity: params.purity || '100',         // Default to SFW
-        });
-        
-        // Build URL with proxy if enabled
-        const apiUrl = this.buildURL(`${this.baseURL}/search`);
-        
-        console.log(`Attempting API call with ${this.useProxy ? 'proxy: ' + this.getProxyURL() : 'direct connection'}`);
-        
-        const response = await axios.get(apiUrl, {
-          params: queryParams,
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-          }
-        });
-        
-        return response.data;
-      } catch (error) {
-        console.error(`Wallhaven API Error with proxy ${this.getProxyURL()}:`, error);
-        this.switchProxy(); // Try next proxy
-        
-        // If this was the last proxy attempt, return empty response
-        if (attempt === this.proxyURLs.length - 1) {
-          return { 
-            data: [], 
-            meta: { 
-              current_page: 1, 
-              last_page: 1, 
-              per_page: 24, 
-              total: 0, 
-              query: null, 
-              seed: null 
-            } 
-          };
+    try {
+      // Construct query parameters
+      const queryParams = this.getParams({
+        ...params,
+        categories: params.categories || '111', // Default to all categories
+        purity: params.purity || '100',         // Default to SFW
+      });
+      
+      const response = await axios.get(`${this.baseURL}/search`, {
+        params: queryParams,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
         }
-      }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Wallhaven API Error:', error);
+      // Return empty response
+      return { 
+        data: [], 
+        meta: { 
+          current_page: 1, 
+          last_page: 1, 
+          per_page: 24, 
+          total: 0, 
+          query: null, 
+          seed: null 
+        } 
+      };
     }
-    
-    // Fallback empty response (should never reach here due to the return in the catch block)
-    return { 
-      data: [], 
-      meta: { 
-        current_page: 1, 
-        last_page: 1, 
-        per_page: 24, 
-        total: 0, 
-        query: null, 
-        seed: null 
-      } 
-    };
   }
 
   async getWallpaper(id: string): Promise<WallpaperPreview | null> {
-    for (let attempt = 0; attempt < this.proxyURLs.length; attempt++) {
-      try {
-        const apiUrl = this.buildURL(`${this.baseURL}/w/${id}`);
-        
-        const response = await axios.get(apiUrl, {
-          params: this.getParams(),
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-          }
-        });
-        return response.data.data;
-      } catch (error) {
-        console.error(`Failed to get wallpaper details with proxy ${this.getProxyURL()}:`, error);
-        this.switchProxy(); // Try next proxy
-        
-        if (attempt === this.proxyURLs.length - 1) {
-          return null;
+    try {
+      const response = await axios.get(`${this.baseURL}/w/${id}`, {
+        params: this.getParams(),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
         }
-      }
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to get wallpaper details:', error);
+      return null;
     }
-    return null;
   }
 
   async getTag(id: number): Promise<Tag | null> {
-    for (let attempt = 0; attempt < this.proxyURLs.length; attempt++) {
-      try {
-        const apiUrl = this.buildURL(`${this.baseURL}/tag/${id}`);
-        
-        const response = await axios.get(apiUrl, {
-          params: this.getParams(),
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-          }
-        });
-        return response.data.data;
-      } catch (error) {
-        console.error(`Failed to get tag details with proxy ${this.getProxyURL()}:`, error);
-        this.switchProxy(); // Try next proxy
-        
-        if (attempt === this.proxyURLs.length - 1) {
-          return null;
+    try {
+      const response = await axios.get(`${this.baseURL}/tag/${id}`, {
+        params: this.getParams(),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
         }
-      }
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to get tag details:', error);
+      return null;
     }
-    return null;
   }
 
   async getLatest(page = 1): Promise<WallhavenSearchResponse> {
@@ -250,80 +184,54 @@ class WallhavenAPI {
       return null;
     }
     
-    for (let attempt = 0; attempt < this.proxyURLs.length; attempt++) {
-      try {
-        const apiUrl = this.buildURL(`${this.baseURL}/settings`);
-        
-        const response = await axios.get(apiUrl, {
-          params: { apikey: this.apiKey },
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-          }
-        });
-        return response.data.data;
-      } catch (error) {
-        console.error(`Failed to get user settings with proxy ${this.getProxyURL()}:`, error);
-        this.switchProxy(); // Try next proxy
-        
-        if (attempt === this.proxyURLs.length - 1) {
-          return null;
+    try {
+      const response = await axios.get(`${this.baseURL}/settings`, {
+        params: { apikey: this.apiKey },
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
         }
-      }
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to get user settings:', error);
+      return null;
     }
-    return null;
   }
 
   async getUserCollections(username?: string): Promise<any | null> {
-    for (let attempt = 0; attempt < this.proxyURLs.length; attempt++) {
-      try {
-        const endpoint = username 
-          ? `${this.baseURL}/collections/${username}` 
-          : `${this.baseURL}/collections`;
-        
-        const apiUrl = this.buildURL(endpoint);
-        
-        const response = await axios.get(apiUrl, {
-          params: this.getParams(),
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-          }
-        });
-        return response.data.data;
-      } catch (error) {
-        console.error(`Failed to get collections with proxy ${this.getProxyURL()}:`, error);
-        this.switchProxy(); // Try next proxy
-        
-        if (attempt === this.proxyURLs.length - 1) {
-          return null;
+    try {
+      const endpoint = username 
+        ? `${this.baseURL}/collections/${username}` 
+        : `${this.baseURL}/collections`;
+      
+      const response = await axios.get(endpoint, {
+        params: this.getParams(),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
         }
-      }
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to get collections:', error);
+      return null;
     }
-    return null;
   }
 
   async getCollectionWallpapers(username: string, collectionId: number): Promise<WallhavenSearchResponse | null> {
-    for (let attempt = 0; attempt < this.proxyURLs.length; attempt++) {
-      try {
-        const endpoint = `${this.baseURL}/collections/${username}/${collectionId}`;
-        const apiUrl = this.buildURL(endpoint);
-        
-        const response = await axios.get(apiUrl, {
-          params: this.getParams(),
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-          }
-        });
-        return response.data;
-      } catch (error) {
-        console.error(`Failed to get collection wallpapers with proxy ${this.getProxyURL()}:`, error);
-        this.switchProxy(); // Try next proxy
-        
-        if (attempt === this.proxyURLs.length - 1) {
-          return null;
+    try {
+      const endpoint = `${this.baseURL}/collections/${username}/${collectionId}`;
+      
+      const response = await axios.get(endpoint, {
+        params: this.getParams(),
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
         }
-      }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get collection wallpapers:', error);
+      return null;
     }
-    return null;
   }
 }
 

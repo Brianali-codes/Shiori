@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, Alert } from 'react-native';
-import { List, Switch, Text, Divider, Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card } from 'react-native-paper';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
+import { List, Text, Divider, Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { useThemeContext } from '../../contexts/ThemeContext';
@@ -8,6 +8,102 @@ import { wallhavenAPI } from '../services/wallhaven';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Custom Animated Switch component
+interface AnimatedSwitchProps {
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  disabled?: boolean;
+}
+
+const AnimatedSwitch: React.FC<AnimatedSwitchProps> = ({ value, onValueChange, disabled = false }) => {
+  const paperTheme = useTheme();
+  const translateX = useRef(new Animated.Value(value ? 20 : 0)).current;
+  const switchScale = useRef(new Animated.Value(value ? 1 : 0.9)).current;
+  const backgroundColorAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
+  
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateX, {
+        toValue: value ? 20 : 0,
+        duration: 300,
+        easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+        useNativeDriver: true,
+      }),
+      Animated.timing(switchScale, {
+        toValue: value ? 1 : 0.9,
+        duration: 300,
+        easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+        useNativeDriver: true,
+      }),
+      Animated.timing(backgroundColorAnim, {
+        toValue: value ? 1 : 0,
+        duration: 300,
+        easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [value, translateX, switchScale, backgroundColorAnim]);
+
+  const backgroundColor = backgroundColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [paperTheme.dark ? '#555555' : '#E0E0E0', paperTheme.colors.primary],
+  });
+
+  const handlePress = () => {
+    if (!disabled) {
+      onValueChange(!value);
+    }
+  };
+
+  return (
+    <TouchableOpacity 
+      onPress={handlePress}
+      disabled={disabled}
+      style={{ opacity: disabled ? 0.5 : 1 }}
+    >
+      <Animated.View 
+        style={[
+          switchStyles.track,
+          { backgroundColor },
+        ]}
+      >
+        <Animated.View
+          style={[
+            switchStyles.thumb,
+            {
+              transform: [
+                { translateX },
+                { scale: switchScale }
+              ],
+              backgroundColor: paperTheme.dark ? '#FFFFFF' : '#FFFFFF',
+              elevation: value ? 2 : 1,
+            },
+          ]}
+        />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+// Styles for the switch
+const switchStyles = StyleSheet.create({
+  track: {
+    width: 46,
+    height: 26,
+    borderRadius: 13,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  thumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+});
 
 export default function SettingsScreen() {
   const { theme, setTheme, isDark, isAmoled } = useThemeContext();
@@ -17,6 +113,7 @@ export default function SettingsScreen() {
   const [wallhavenApiKey, setWallhavenApiKeyState] = useState('');
   const [highQualityThumbs, setHighQualityThumbs] = useState(false);
   const [autoplayAnimated, setAutoplayAnimated] = useState(true);
+  const [showNsfwContent, setShowNsfwContent] = useState(false);
   const [apiKeyDialogVisible, setApiKeyDialogVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,7 +151,7 @@ export default function SettingsScreen() {
   };
 
   useEffect(() => {
-    const loadApiKey = async () => {
+    const loadSettings = async () => {
       try {
         const savedKey = await AsyncStorage.getItem('wallhavenApiKey');
         if (savedKey) {
@@ -62,36 +159,37 @@ export default function SettingsScreen() {
           // Also set the key on the wallhavenAPI instance
           wallhavenAPI.setApiKey(savedKey);
         }
+        
+        // Load NSFW setting
+        const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
+        if (nsfwSetting) {
+          setShowNsfwContent(nsfwSetting === 'true');
+        }
       } catch (error) {
-        console.error('Failed to load API key:', error);
+        console.error('Failed to load settings:', error);
       }
     };
-    loadApiKey();
+    loadSettings();
   }, []);
-
-  // Store the API key immediately
+  
+  // Save NSFW setting when it changes
   useEffect(() => {
-    const storeApiKey = async () => {
+    const saveNsfwSetting = async () => {
       try {
-        // Store the provided API key
-        const apiKey = 'S9eGuYOS7MOFjXfV91Up30hozbk5kpQR';
-        await AsyncStorage.setItem('wallhavenApiKey', apiKey);
-        setWallhavenApiKeyState(apiKey);
-        wallhavenAPI.setApiKey(apiKey);
-        console.log("API key stored successfully");
+        await AsyncStorage.setItem('showNsfwContent', showNsfwContent ? 'true' : 'false');
       } catch (error) {
-        console.error('Failed to store API key:', error);
+        console.error('Failed to save NSFW setting:', error);
       }
     };
-    storeApiKey();
-  }, []);
+    saveNsfwSetting();
+  }, [showNsfwContent]);
 
   const clearCache = () => {
     Alert.alert('Cache Cleared', 'All cached images have been cleared');
   };
 
   const showAbout = () => {
-    Alert.alert('Fresco Wallpaper', 'Version 1.0.0\n\nA beautiful wallpaper browser app using the Wallhaven API.');
+    Alert.alert('Shiori', 'Version 1.0.0\n\nA beautiful wallpaper browser app using the Wallhaven API.');
   };
 
   return (
@@ -167,7 +265,7 @@ export default function SettingsScreen() {
                 <MaterialIcons name="wifi" size={size} color={color} />
               )} />}
               right={() => (
-                <Switch
+                <AnimatedSwitch 
                   value={downloadOnWifi}
                   onValueChange={setDownloadOnWifi}
                 />
@@ -190,7 +288,7 @@ export default function SettingsScreen() {
                 <MaterialIcons name="play-circle" size={size} color={color} />
               )} />}
               right={() => (
-                <Switch
+                <AnimatedSwitch 
                   value={autoplayAnimated}
                   onValueChange={setAutoplayAnimated}
                 />
@@ -210,7 +308,7 @@ export default function SettingsScreen() {
                 <MaterialIcons name="notifications" size={size} color={color} />
               )} />}
               right={() => (
-                <Switch
+                <AnimatedSwitch 
                   value={notifications}
                   onValueChange={setNotifications}
                 />
@@ -230,6 +328,20 @@ export default function SettingsScreen() {
                 <MaterialIcons name="vpn-key" size={size} color={color} />
               )} />}
               onPress={() => setApiKeyDialogVisible(true)}
+            />
+            
+            <List.Item
+              title="Show NSFW Content"
+              description="Enable to show NSFW and sketchy content"
+              left={props => <List.Icon {...props} icon={({size, color}) => (
+                <MaterialIcons name="visibility" size={size} color={color} />
+              )} />}
+              right={() => (
+                <AnimatedSwitch 
+                  value={showNsfwContent}
+                  onValueChange={setShowNsfwContent}
+                />
+              )}
             />
           </Card.Content>
         </Card>
@@ -254,7 +366,7 @@ export default function SettingsScreen() {
             <Text variant="titleSmall" style={styles.sectionTitle}>ABOUT</Text>
             
             <List.Item
-              title="About Fresco Wallpaper"
+              title="About Shiori"
               description="Version 1.0.0"
               left={props => <List.Icon {...props} icon={({size, color}) => (
                 <MaterialIcons name="info" size={size} color={color} />
@@ -264,48 +376,47 @@ export default function SettingsScreen() {
             
             <List.Item
               title="Rate the App"
-              description="Let us know how we're doing"
+              description="Enjoying Shiori? Let us know!"
               left={props => <List.Icon {...props} icon={({size, color}) => (
                 <MaterialIcons name="star" size={size} color={color} />
               )} />}
             />
             
             <List.Item
-              title="Send Feedback"
-              description="Help us improve the app"
+              title="Contact Us"
+              description="Send feedback or report issues"
               left={props => <List.Icon {...props} icon={({size, color}) => (
                 <MaterialIcons name="email" size={size} color={color} />
               )} />}
             />
           </Card.Content>
         </Card>
-        
-        <View style={styles.footer}>
-          <Text variant="bodySmall" style={styles.footerText}>
-            Powered by Wallhaven API
-          </Text>
-          <Text variant="bodySmall" style={styles.footerText}>
-            © 2023 Fresco Wallpaper
-          </Text>
-        </View>
       </ScrollView>
-
+      
       <Portal>
         <Dialog visible={apiKeyDialogVisible} onDismiss={() => setApiKeyDialogVisible(false)}>
-          <Dialog.Title style={styles.dialogTitle}>Enter Wallhaven API Key</Dialog.Title>
+          <Dialog.Title>Wallhaven API Key</Dialog.Title>
           <Dialog.Content>
             <TextInput
               label="API Key"
               value={wallhavenApiKey}
               onChangeText={setWallhavenApiKeyState}
-              secureTextEntry
-              style={styles.textInput}
+              mode="outlined"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.apiKeyInput}
             />
+            <Text variant="bodySmall" style={styles.apiKeyHelp}>
+              You can get your API key from your Wallhaven account settings.
+            </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setApiKeyDialogVisible(false)}>Cancel</Button>
-            <Button onPress={handleApiKeySubmit} loading={isLoading}>
-              Save
+            <Button 
+              onPress={handleApiKeySubmit} 
+              disabled={isLoading || !wallhavenApiKey}
+            >
+              {isLoading ? <ActivityIndicator size={16} color={paperTheme.colors.primary} /> : 'Save'}
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -319,8 +430,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userCard: {
-    margin: 16,
-    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
   },
   userInfo: {
     flexDirection: 'row',
@@ -332,62 +444,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userSubtitle: {
-    opacity: 0.7,
-    marginTop: 4,
+    opacity: 0.6,
+    marginTop: 2,
   },
   signInButton: {
-    marginTop: 8,
+    borderRadius: 8,
   },
   settingsSection: {
     marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
+    marginVertical: 8,
   },
   sectionTitle: {
-    paddingBottom: 8,
-    opacity: 0.7,
-  },
-  footer: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  footerText: {
-    opacity: 0.7,
     marginBottom: 8,
+    opacity: 0.7,
+    letterSpacing: 0.15,
+    fontFamily: 'Nunito-Regular',
   },
   themeOptions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginTop: 8,
   },
   themeOption: {
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    width: '30%',
   },
   selectedTheme: {
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(128, 128, 128, 0.15)',
   },
   themePreview: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 8,
     marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(128, 128, 128, 0.2)',
   },
   themeText: {
-    fontFamily: 'Roboto-Regular',
+    fontFamily: 'Nunito-Regular',
     fontSize: 14,
   },
-  dialogTitle: {
-    fontFamily: 'Roboto-Medium',
-    fontSize: 20,
-    letterSpacing: 0.15,
+  apiKeyInput: {
+    marginBottom: 8,
   },
-  textInput: {
-    fontFamily: 'Roboto-Regular',
-    fontSize: 16,
+  apiKeyHelp: {
+    opacity: 0.6,
   },
 }); 

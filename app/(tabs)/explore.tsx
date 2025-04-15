@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ScrollView } from 'react-native';
-import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
+import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert } from 'react-native';
+import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton, Button } from 'react-native-paper';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ExploreScreen() {
   const [wallpapers, setWallpapers] = useState<WallpaperPreview[]>([]);
@@ -15,7 +16,24 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSort, setSelectedSort] = useState('date_added');
   const [selectedOrder, setSelectedOrder] = useState('desc');
+  const [showNsfwContent, setShowNsfwContent] = useState(false);
   const theme = useTheme();
+
+  // Load NSFW setting on component mount
+  useEffect(() => {
+    const loadNsfwSetting = async () => {
+      try {
+        const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
+        if (nsfwSetting !== null) {
+          setShowNsfwContent(nsfwSetting === 'true');
+        }
+      } catch (error) {
+        console.error('Failed to load NSFW setting:', error);
+      }
+    };
+    
+    loadNsfwSetting();
+  }, []);
 
   const sortOptions = [
     { id: 'date_added', label: 'Latest' },
@@ -34,10 +52,22 @@ export default function ExploreScreen() {
   const loadWallpapers = async () => {
     try {
       setLoading(true);
+      
+      // Check if trying to access NSFW content without API key
+      if (showNsfwContent && !wallhavenAPI.hasApiKey()) {
+        Alert.alert(
+          'API Key Required', 
+          'You need to set a Wallhaven API key in Settings to access NSFW content.',
+          [{ text: 'OK' }]
+        );
+      }
+      
       const response = await wallhavenAPI.search({
         q: searchQuery,
         sorting: selectedSort as any,
         order: selectedOrder as any,
+        // Set purity based on NSFW setting
+        purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100', // If NSFW allowed and has API key, enable all; otherwise only SFW
       });
       setWallpapers(response.data);
     } catch (error) {
@@ -69,13 +99,15 @@ export default function ExploreScreen() {
             {item.resolution}
           </Text>
           <View style={styles.actions}>
-            <IconButton
-              icon={({ size, color }) => (
-                <IconSymbol name="heart.fill" size={size} color={color} />
-              )}
-              size={20}
+            <Button
+              mode="contained"
+              compact
               onPress={() => {}}
-            />
+              style={styles.favoriteButton}
+              icon="heart"
+            >
+              Favorite
+            </Button>
             <IconButton
               icon={({ size, color }) => (
                 <IconSymbol name="square.and.arrow.down.fill" size={size} color={color} />
@@ -207,5 +239,9 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+  },
+  favoriteButton: {
+    marginRight: 8,
+    borderRadius: 8,
   },
 });
