@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
-import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge } from 'react-native-paper';
+import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge, Searchbar, IconButton } from 'react-native-paper';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { ThemedView } from '@/components/ThemedView';
+import { ThemedView } from '@/components/ThemedComponents';
 import { WallpaperCard } from '@/components/ui/WallpaperCard';
 import { wallhavenAPI, WallpaperPreview, SearchParams } from '../services/wallhaven';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,12 +13,54 @@ const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
 
 const featuredCollections = [
-  { id: '1', title: 'Nature', icon: 'leaf.fill', color: '#4CAF50', query: 'nature' },
-  { id: '2', title: 'Abstract', icon: 'scribble', color: '#9C27B0', query: 'abstract' },
-  { id: '3', title: 'Minimal', icon: 'square.fill', color: '#607D8B', query: 'minimal' },
-  { id: '4', title: 'Landscapes', icon: 'mountain.2.fill', color: '#FF9800', query: 'landscape' },
-  { id: '5', title: 'Dark', icon: 'moon.fill', color: '#212121', query: 'dark' },
-  { id: '6', title: 'Anime', icon: 'sparkles.fill', color: '#E91E63', query: 'anime' },
+  { 
+    id: '1', 
+    title: 'Nature', 
+    icon: 'leaf.fill', 
+    color: '#4CAF50', 
+    query: 'nature',
+    imageUrl: 'https://w.wallhaven.cc/full/9d/wallhaven-9djej1.jpg'
+  },
+  { 
+    id: '2', 
+    title: 'Abstract', 
+    icon: 'scribble', 
+    color: '#9C27B0', 
+    query: 'abstract',
+    imageUrl: 'https://w.wallhaven.cc/full/j3/wallhaven-j3m8y5.png'
+  },
+  { 
+    id: '3', 
+    title: 'Minimal', 
+    icon: 'square.fill', 
+    color: '#607D8B', 
+    query: 'minimal',
+    imageUrl: 'https://w.wallhaven.cc/full/4x/wallhaven-4xjrl9.jpg'
+  },
+  { 
+    id: '4', 
+    title: 'Landscapes', 
+    icon: 'mountain.2.fill', 
+    color: '#FF9800', 
+    query: 'landscape',
+    imageUrl: 'https://w.wallhaven.cc/full/x8/wallhaven-x8ye3z.jpg'
+  },
+  { 
+    id: '5', 
+    title: 'Dark', 
+    icon: 'moon.fill', 
+    color: '#212121', 
+    query: 'dark',
+    imageUrl: 'https://w.wallhaven.cc/full/4g/wallhaven-4g6e1l.jpg'
+  },
+  { 
+    id: '6', 
+    title: 'Anime', 
+    icon: 'sparkles.fill', 
+    color: '#E91E63', 
+    query: 'anime',
+    imageUrl: 'https://w.wallhaven.cc/full/pk/wallhaven-pkw77p.jpg'
+  },
 ];
 
 export default function HomeScreen() {
@@ -28,8 +70,28 @@ export default function HomeScreen() {
   const [latestWallpapers, setLatestWallpapers] = useState<WallpaperPreview[]>([]);
   const [topWallpapers, setTopWallpapers] = useState<WallpaperPreview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedPurity, setSelectedPurity] = useState('sfw');
+
+  const categories = [
+    { id: 'all', label: 'All' },
+    { id: 'general', label: 'General' },
+    { id: 'anime', label: 'Anime' },
+    { id: 'people', label: 'People' },
+  ];
+
+  const purityLevels = [
+    { id: 'sfw', label: 'SFW' },
+    { id: 'sketchy', label: 'Sketchy' },
+    { id: 'nsfw', label: 'NSFW' },
+  ];
 
   useEffect(() => {
+    // Set the API key directly 
+    wallhavenAPI.setApiKey('S9eGuYOS7MOFjXfV91Up30hozbk5kpQR');
+    
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -99,11 +161,69 @@ export default function HomeScreen() {
       style={styles.collectionItem}
       onPress={() => navigateToCategory(item.query)}
     >
-      <Surface style={[styles.collectionIcon, { backgroundColor: item.color }]}>
-        <IconSymbol name={item.icon as any} size={24} color="white" />
-      </Surface>
+      <Image 
+        source={{ uri: item.imageUrl }} 
+        style={styles.collectionImage}
+      />
       <Text style={styles.collectionTitle}>{item.title}</Text>
     </TouchableOpacity>
+  );
+
+  const loadWallpapers = async () => {
+    try {
+      setLoading(true);
+      const response = await wallhavenAPI.search({
+        q: searchQuery,
+        categories: selectedCategory === 'all' ? '111' : selectedCategory === 'general' ? '100' : selectedCategory === 'anime' ? '010' : '001',
+        purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001',
+      });
+      setFeaturedWallpapers(response.data.slice(0, 5));
+      setLatestWallpapers(response.data.slice(5, 11));
+      setTopWallpapers(response.data.slice(11, 17));
+    } catch (error) {
+      console.error('Error loading wallpapers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadWallpapers();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    loadWallpapers();
+  }, [searchQuery, selectedCategory, selectedPurity]);
+
+  const renderWallpaper = ({ item }: { item: WallpaperPreview }) => (
+    <Card style={styles.wallpaperCard} mode="elevated">
+      <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
+      <Card.Content style={styles.wallpaperContent}>
+        <View style={styles.wallpaperInfo}>
+          <Text variant="bodyMedium" style={styles.resolution}>
+            {item.resolution}
+          </Text>
+          <View style={styles.actions}>
+            <IconButton
+              icon={({ size, color }) => (
+                <IconSymbol name="heart.fill" size={size} color={color} />
+              )}
+              size={20}
+              onPress={() => {}}
+            />
+            <IconButton
+              icon={({ size, color }) => (
+                <IconSymbol name="square.and.arrow.down.fill" size={size} color={color} />
+              )}
+              size={20}
+              onPress={() => {}}
+            />
+          </View>
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   if (loading) {
@@ -128,6 +248,41 @@ export default function HomeScreen() {
         }}
       />
       
+      <Searchbar
+        placeholder="Search wallpapers..."
+        onChangeText={setSearchQuery}
+        value={searchQuery}
+        style={styles.searchBar}
+      />
+
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+          {categories.map((category) => (
+            <Chip
+              key={category.id}
+              selected={selectedCategory === category.id}
+              onPress={() => setSelectedCategory(category.id)}
+              style={styles.categoryChip}
+            >
+              {category.label}
+            </Chip>
+          ))}
+        </ScrollView>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
+          {purityLevels.map((purity) => (
+            <Chip
+              key={purity.id}
+              selected={selectedPurity === purity.id}
+              onPress={() => setSelectedPurity(purity.id)}
+              style={styles.purityChip}
+            >
+              {purity.label}
+            </Chip>
+          ))}
+        </ScrollView>
+      </View>
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
@@ -160,9 +315,10 @@ export default function HomeScreen() {
               style={styles.collectionItem}
               onPress={() => navigateToCategory(item.query)}
             >
-              <Surface style={[styles.collectionIcon, { backgroundColor: item.color }]}>
-                <IconSymbol name={item.icon as any} size={24} color="white" />
-              </Surface>
+              <Image 
+                source={{ uri: item.imageUrl }} 
+                style={styles.collectionImage}
+              />
               <Text style={styles.collectionTitle}>{item.title}</Text>
             </TouchableOpacity>
           ))}
@@ -230,8 +386,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontFamily: 'SpaceMono',
-    fontWeight: 'bold',
+    fontFamily: 'Nunito-Bold',
+    fontSize: 20,
   },
   header: {
     flexDirection: 'row',
@@ -241,7 +397,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontWeight: 'bold',
+    fontFamily: 'Nunito-Bold',
+    fontSize: 18,
   },
   featuredList: {
     paddingLeft: 16,
@@ -280,9 +437,11 @@ const styles = StyleSheet.create({
     color: 'white',
     marginLeft: 4,
     fontSize: 12,
+    fontFamily: 'Nunito-Regular',
   },
   categoriesTitle: {
-    fontWeight: 'bold',
+    fontFamily: 'Nunito-Bold',
+    fontSize: 18,
     marginLeft: 16,
     marginTop: 16,
     marginBottom: 12,
@@ -298,17 +457,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  collectionIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
+  collectionImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
     marginBottom: 8,
-    elevation: 2,
   },
   collectionTitle: {
-    fontWeight: '500',
+    fontFamily: 'Nunito-SemiBold',
     fontSize: 13,
   },
   section: {
@@ -327,8 +483,51 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     opacity: 0.7,
+    fontFamily: 'Nunito-Regular',
   },
   footer: {
     height: 50,
+  },
+  searchBar: {
+    margin: 16,
+    borderRadius: 16,
+  },
+  filterContainer: {
+    paddingHorizontal: 16,
+  },
+  categoryScroll: {
+    marginBottom: 8,
+  },
+  purityScroll: {
+    marginBottom: 16,
+  },
+  categoryChip: {
+    marginRight: 8,
+  },
+  purityChip: {
+    marginRight: 8,
+  },
+  wallpaperCard: {
+    flex: 1,
+    margin: 8,
+    borderRadius: 16,
+  },
+  wallpaperImage: {
+    aspectRatio: 1,
+    borderRadius: 16,
+  },
+  wallpaperContent: {
+    padding: 8,
+  },
+  wallpaperInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resolution: {
+    opacity: 0.7,
+  },
+  actions: {
+    flexDirection: 'row',
   },
 });

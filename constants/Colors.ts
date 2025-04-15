@@ -23,4 +23,12 @@ export const Colors = {
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
   },
+  amoled: {
+    text: '#FFFFFF',
+    background: '#000000',
+    tint: tintColorDark,
+    icon: '#AAAAAA',
+    tabIconDefault: '#AAAAAA',
+    tabIconSelected: tintColorDark,
+  },
 };

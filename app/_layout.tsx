@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 
 import { ThemeProvider, useThemeContext } from '../contexts/ThemeContext';
 import { Colors } from '../constants/Colors';
+import { fonts } from '../theme/fonts';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -42,25 +43,78 @@ const CustomDarkTheme = {
   },
 };
 
+const CustomAmoledTheme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    primary: Colors.amoled.tint,
+    primaryContainer: '#002A38',
+    secondary: '#0a7ea4',
+    background: Colors.amoled.background,
+    surface: Colors.amoled.background,
+    surfaceVariant: '#101010',
+    text: Colors.amoled.text,
+    elevation: {
+      ...MD3DarkTheme.colors.elevation,
+      level0: Colors.amoled.background,
+      level1: '#0A0A0A',
+      level2: '#111111',
+      level3: '#141414',
+      level4: '#181818',
+      level5: '#1C1C1C',
+    },
+  },
+};
+
 // Layout wrapper that provides the navigation theme
 function NavigationRoot() {
-  const { theme } = useThemeContext();
-  const isDark = theme === 'dark';
+  const { theme, isDark, isAmoled } = useThemeContext();
   
-  const paperTheme = isDark ? CustomDarkTheme : CustomLightTheme;
-  const navigationTheme = isDark ? DarkTheme : DefaultTheme;
+  const getPaperTheme = () => {
+    if (isAmoled) return CustomAmoledTheme;
+    return isDark ? CustomDarkTheme : CustomLightTheme;
+  };
   
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  const paperTheme = getPaperTheme();
+  const navigationTheme = isDark || isAmoled ? DarkTheme : DefaultTheme;
+  
+  const [fontsLoaded] = useFonts({
+    // Regular variants
+    'Nunito-Regular': require('../assets/fonts/Nunito-Regular.ttf'),
+    'Nunito-Italic': require('../assets/fonts/Nunito-Italic.ttf'),
+    
+    // Light variants
+    'Nunito-Light': require('../assets/fonts/Nunito-Light.ttf'),
+    'Nunito-LightItalic': require('../assets/fonts/Nunito-LightItalic.ttf'),
+    
+    // Extra Light variants
+    'Nunito-ExtraLight': require('../assets/fonts/Nunito-ExtraLight.ttf'),
+    'Nunito-ExtraLightItalic': require('../assets/fonts/Nunito-ExtraLightItalic.ttf'),
+    
+    // Semi Bold variants
+    'Nunito-SemiBold': require('../assets/fonts/Nunito-SemiBold.ttf'),
+    'Nunito-SemiBoldItalic': require('../assets/fonts/Nunito-SemiBoldItalic.ttf'),
+    
+    // Bold variants
+    'Nunito-Bold': require('../assets/fonts/Nunito-Bold.ttf'),
+    'Nunito-BoldItalic': require('../assets/fonts/Nunito-BoldItalic.ttf'),
+    
+    // Extra Bold variants
+    'Nunito-ExtraBold': require('../assets/fonts/Nunito-ExtraBold.ttf'),
+    'Nunito-ExtraBoldItalic': require('../assets/fonts/Nunito-ExtraBoldItalic.ttf'),
+    
+    // Black variants
+    'Nunito-Black': require('../assets/fonts/Nunito-Black.ttf'),
+    'Nunito-BlackItalic': require('../assets/fonts/Nunito-BlackItalic.ttf'),
   });
 
   useEffect(() => {
-    if (loaded) {
+    if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [fontsLoaded]);
 
-  if (!loaded) {
+  if (!fontsLoaded) {
     return null;
   }
 
@@ -71,7 +125,7 @@ function NavigationRoot() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
-        <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+        <StatusBar style={isDark || isAmoled ? 'light' : 'dark'} />
       </NavigationThemeProvider>
     </PaperProvider>
   );

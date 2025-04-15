@@ -1,219 +1,155 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, FlatList, RefreshControl, View, ActivityIndicator } from 'react-native';
-import { Searchbar, Chip, useTheme, Divider, Text } from 'react-native-paper';
-import { Stack, useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, FlatList, RefreshControl, ScrollView } from 'react-native';
+import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
+import { ThemedView, ThemedText } from '@/components/ThemedComponents';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { ThemedView } from '@/components/ThemedView';
-import { WallpaperCard } from '@/components/ui/WallpaperCard';
-import { wallhavenAPI, WallpaperPreview, SearchParams } from '../services/wallhaven';
-
-interface Category {
-  id: string;
-  label: string;
-  icon: string;
-}
-
-interface SortOption {
-  id: SearchParams['sorting'];
-  label: string;
-}
-
-const categories: Category[] = [
-  { id: '100', label: 'General', icon: 'photo.fill' },
-  { id: '010', label: 'Anime', icon: 'sparkles.fill' },
-  { id: '001', label: 'People', icon: 'person.fill' },
-  { id: '111', label: 'All', icon: 'rectangle.grid.2x2.fill' },
-];
-
-const sortOptions: SortOption[] = [
-  { id: 'date_added', label: 'Latest' },
-  { id: 'toplist', label: 'Top' },
-  { id: 'random', label: 'Random' },
-  { id: 'views', label: 'Most Viewed' },
-  { id: 'favorites', label: 'Most Favorited' },
-];
+import { wallhavenAPI } from '../services/wallhaven';
+import { WallpaperPreview } from '../services/wallhaven';
 
 export default function ExploreScreen() {
-  const theme = useTheme();
-  const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState(['111']); // Default to All
-  const [selectedSort, setSelectedSort] = useState<SearchParams['sorting']>('toplist');
   const [wallpapers, setWallpapers] = useState<WallpaperPreview[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [hasMorePages, setHasMorePages] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSort, setSelectedSort] = useState('date_added');
+  const [selectedOrder, setSelectedOrder] = useState('desc');
+  const theme = useTheme();
 
-  const fetchWallpapers = useCallback(async (pageNum = 1, append = false) => {
-    if (pageNum === 1) setLoading(true);
-    if (pageNum > 1) setLoadingMore(true);
-    
+  const sortOptions = [
+    { id: 'date_added', label: 'Latest' },
+    { id: 'relevance', label: 'Relevance' },
+    { id: 'random', label: 'Random' },
+    { id: 'views', label: 'Views' },
+    { id: 'favorites', label: 'Favorites' },
+    { id: 'toplist', label: 'Toplist' },
+  ];
+
+  const orderOptions = [
+    { id: 'desc', label: 'Descending' },
+    { id: 'asc', label: 'Ascending' },
+  ];
+
+  const loadWallpapers = async () => {
     try {
+      setLoading(true);
       const response = await wallhavenAPI.search({
         q: searchQuery,
-        categories: selectedCategories[0], // Use first category only
-        sorting: selectedSort,
-        page: pageNum,
+        sorting: selectedSort as any,
+        order: selectedOrder as any,
       });
-      
-      if (response.data) {
-        if (append) {
-          setWallpapers(prev => [...prev, ...response.data]);
-        } else {
-          setWallpapers(response.data);
-        }
-        
-        setHasMorePages(response.meta.current_page < response.meta.last_page);
-        setPage(response.meta.current_page);
-      }
+      setWallpapers(response.data);
     } catch (error) {
-      console.error('Failed to fetch wallpapers:', error);
+      console.error('Error loading wallpapers:', error);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
-      setRefreshing(false);
     }
-  }, [searchQuery, selectedCategories, selectedSort]);
+  };
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchWallpapers(1, false);
-  }, [fetchWallpapers]);
+    await loadWallpapers();
+    setRefreshing(false);
+  };
 
-  const loadMoreWallpapers = useCallback(() => {
-    if (!loadingMore && hasMorePages) {
-      fetchWallpapers(page + 1, true);
-    }
-  }, [fetchWallpapers, loadingMore, hasMorePages, page]);
-
-  // Initial load
   useEffect(() => {
-    fetchWallpapers(1, false);
-  }, [selectedSort, selectedCategories]);
+    // Set the API key
+    wallhavenAPI.setApiKey('S9eGuYOS7MOFjXfV91Up30hozbk5kpQR');
+    
+    loadWallpapers();
+  }, [searchQuery, selectedSort, selectedOrder]);
 
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories([categoryId]); // Set single category
-  };
-
-  const navigateToWallpaper = (id: string) => {
-    router.push(`/wallpaper/${id}`);
-  };
+  const renderWallpaper = ({ item }: { item: WallpaperPreview }) => (
+    <Card style={styles.wallpaperCard} mode="elevated">
+      <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
+      <Card.Content style={styles.wallpaperContent}>
+        <View style={styles.wallpaperInfo}>
+          <Text variant="bodyMedium" style={styles.resolution}>
+            {item.resolution}
+          </Text>
+          <View style={styles.actions}>
+            <IconButton
+              icon={({ size, color }) => (
+                <IconSymbol name="heart.fill" size={size} color={color} />
+              )}
+              size={20}
+              onPress={() => {}}
+            />
+            <IconButton
+              icon={({ size, color }) => (
+                <IconSymbol name="square.and.arrow.down.fill" size={size} color={color} />
+              )}
+              size={20}
+              onPress={() => {}}
+            />
+          </View>
+        </View>
+      </Card.Content>
+    </Card>
+  );
 
   return (
     <ThemedView style={styles.container}>
+      <StatusBar style="auto" />
       <Stack.Screen
         options={{
-          headerShown: true,
           title: 'Explore',
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: theme.colors.background },
         }}
       />
-      
+
       <Searchbar
         placeholder="Search wallpapers..."
-        onChangeText={(text: string) => setSearchQuery(text)}
+        onChangeText={setSearchQuery}
         value={searchQuery}
         style={styles.searchBar}
-        onSubmitEditing={() => fetchWallpapers(1, false)}
       />
 
-      <View style={styles.filtersContainer}>
-        <FlatList
-          data={categories}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
+          {sortOptions.map((sort) => (
             <Chip
-              style={styles.chip}
-              mode="flat"
-              selected={selectedCategories.includes(item.id)}
-              onPress={() => toggleCategory(item.id)}
-              elevation={1}
-              showSelectedOverlay
-              icon={() => (
-                <IconSymbol
-                  name={item.icon as any}
-                  size={16}
-                  color={selectedCategories.includes(item.id) 
-                    ? theme.colors.primary 
-                    : theme.colors.onSurfaceVariant}
-                />
-              )}
+              key={sort.id}
+              selected={selectedSort === sort.id}
+              onPress={() => setSelectedSort(sort.id)}
+              style={styles.sortChip}
             >
-              {item.label}
+              {sort.label}
             </Chip>
-          )}
-          contentContainerStyle={styles.filterList}
-        />
+          ))}
+        </ScrollView>
 
-        <Divider style={styles.divider} />
-
-        <FlatList
-          data={sortOptions}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderScroll}>
+          {orderOptions.map((order) => (
             <Chip
-              style={styles.chip}
-              mode="outlined"
-              selected={selectedSort === item.id}
-              onPress={() => setSelectedSort(item.id)}
-              showSelectedOverlay
+              key={order.id}
+              selected={selectedOrder === order.id}
+              onPress={() => setSelectedOrder(order.id)}
+              style={styles.orderChip}
             >
-              {item.label}
+              {order.label}
             </Chip>
-          )}
-          contentContainerStyle={styles.filterList}
-        />
+          ))}
+        </ScrollView>
       </View>
 
-      <FlatList
-        data={wallpapers}
-        numColumns={2}
-        renderItem={({ item }) => (
-          <WallpaperCard
-            id={item.id}
-            thumbUrl={item.thumbs.small}
-            resolution={item.resolution}
-          />
-        )}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onEndReached={loadMoreWallpapers}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text variant="labelMedium" style={{ marginLeft: 8 }}>Loading more...</Text>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Fetching wallpapers...</Text>
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <IconSymbol
-                name="photo.fill" 
-                size={48}
-                color={theme.colors.outline}
-              />
-              <Text variant="titleMedium" style={styles.emptyText}>No wallpapers found</Text>
-              <Text variant="bodyMedium" style={styles.emptySubtext}>Try adjusting your search</Text>
-            </View>
-          )
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+        </View>
+      ) : (
+        <FlatList
+          data={wallpapers}
+          renderItem={renderWallpaper}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.wallpaperList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        />
+      )}
     </ThemedView>
   );
 }
@@ -224,52 +160,52 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     margin: 16,
-    borderRadius: 28,
+    borderRadius: 16,
   },
-  filtersContainer: {
-    paddingHorizontal: 8,
+  filterContainer: {
+    paddingHorizontal: 16,
+  },
+  sortScroll: {
     marginBottom: 8,
   },
-  filterList: {
-    paddingHorizontal: 8,
+  orderScroll: {
+    marginBottom: 16,
   },
-  divider: {
-    marginVertical: 8,
+  sortChip: {
+    marginRight: 8,
   },
-  chip: {
-    marginHorizontal: 4,
-    marginVertical: 4,
-  },
-  list: {
-    padding: 8,
+  orderChip: {
+    marginRight: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 300,
   },
-  loadingText: {
-    marginTop: 12,
-    color: theme => theme.colors.onSurfaceVariant,
+  wallpaperList: {
+    padding: 8,
   },
-  loadingMore: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  emptyContainer: {
+  wallpaperCard: {
     flex: 1,
-    justifyContent: 'center',
+    margin: 8,
+    borderRadius: 16,
+  },
+  wallpaperImage: {
+    aspectRatio: 1,
+    borderRadius: 16,
+  },
+  wallpaperContent: {
+    padding: 8,
+  },
+  wallpaperInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    height: 300,
   },
-  emptyText: {
-    marginTop: 16,
-    color: theme => theme.colors.onSurfaceVariant,
+  resolution: {
+    opacity: 0.7,
   },
-  emptySubtext: {
-    color: theme => theme.colors.outline,
+  actions: {
+    flexDirection: 'row',
   },
 });

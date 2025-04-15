@@ -11,10 +11,12 @@ import {
   FlatList,
   FlatListProps,
   ImageBackground,
-  ImageBackgroundProps
+  ImageBackgroundProps,
+  StyleSheet,
+  ViewStyle,
+  TextStyle
 } from 'react-native';
-import { useThemeColor } from '../hooks/useThemeColor';
-import { useThemeContext } from '../contexts/ThemeContext';
+import { useThemeContext } from '@/contexts/ThemeContext';
 
 // Base themed props interface
 export interface ThemedProps {
@@ -22,28 +24,103 @@ export interface ThemedProps {
   darkColor?: string;
 }
 
+// Default theme colors
+const defaultColors = {
+  light: {
+    background: '#FFFFFF',
+    text: '#11181C',
+    card: '#F1F3F5',
+    border: '#E6E8EB',
+    primary: '#0a7ea4',
+    secondary: '#687076',
+    accent: '#889096',
+    muted: '#F9F9F9'
+  },
+  dark: {
+    background: '#151718',
+    text: '#ECEDEE',
+    card: '#1E1F20',
+    border: '#2C2D2E',
+    primary: '#0a7ea4',
+    secondary: '#687076',
+    accent: '#9BA1A6',
+    muted: '#454545'
+  },
+  amoled: {
+    background: '#000000',
+    text: '#FFFFFF',
+    card: '#111111',
+    border: '#222222',
+    primary: '#0a7ea4',
+    secondary: '#687076',
+    accent: '#9BA1A6',
+    muted: '#222222'
+  }
+};
+
 // ThemedView component
 export type ThemedViewProps = ViewProps & ThemedProps;
 
-export function ThemedView({ style, lightColor, darkColor, ...otherProps }: ThemedViewProps) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
-  return <View style={[{ backgroundColor }, style]} {...otherProps} />;
+export function ThemedView({ children, style, lightColor, darkColor }: ThemedViewProps) {
+  const { theme } = useThemeContext();
+  const colors = defaultColors[theme];
+
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 // ThemedText component
 export type ThemedTextProps = TextProps & ThemedProps;
 
-export function ThemedText({ style, lightColor, darkColor, ...otherProps }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  return <Text style={[{ color }, style]} {...otherProps} />;
+export function ThemedText({ children, style }: ThemedTextProps) {
+  const { theme } = useThemeContext();
+  const colors = defaultColors[theme];
+
+  return (
+    <Text
+      style={[
+        {
+          color: colors.text,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </Text>
+  );
 }
 
 // ThemedScrollView component
 export type ThemedScrollViewProps = ScrollViewProps & ThemedProps;
 
-export function ThemedScrollView({ style, lightColor, darkColor, ...otherProps }: ThemedScrollViewProps) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
-  return <ScrollView style={[{ backgroundColor }, style]} {...otherProps} />;
+export function ThemedScrollView({ children, style }: ThemedScrollViewProps) {
+  const { theme } = useThemeContext();
+  const colors = defaultColors[theme];
+
+  return (
+    <ScrollView
+      style={[
+        styles.scrollView,
+        {
+          backgroundColor: colors.background,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </ScrollView>
+  );
 }
 
 // ThemedPressable component
@@ -52,7 +129,10 @@ export type ThemedPressableProps = PressableProps & ThemedProps & {
 };
 
 export function ThemedPressable({ style, lightColor, darkColor, backgroundColor, ...otherProps }: ThemedPressableProps) {
-  const bgColor = backgroundColor || useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const { theme } = useThemeContext();
+  const colors = defaultColors[theme];
+  const bgColor = backgroundColor || colors.background;
+  
   return <Pressable 
     style={(state) => [
       { backgroundColor: bgColor, opacity: state.pressed ? 0.8 : 1 },
@@ -66,24 +146,28 @@ export function ThemedPressable({ style, lightColor, darkColor, backgroundColor,
 export type ThemedFlatListProps<T> = FlatListProps<T> & ThemedProps;
 
 export function ThemedFlatList<T>({ style, lightColor, darkColor, ...otherProps }: ThemedFlatListProps<T>) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
-  return <FlatList style={[{ backgroundColor }, style]} {...otherProps} />;
+  const { theme } = useThemeContext();
+  const colors = defaultColors[theme];
+  
+  return <FlatList style={[{ backgroundColor: colors.background }, style]} {...otherProps} />;
 }
 
 // Themed ImageBackground
 export type ThemedImageBackgroundProps = ImageBackgroundProps & ThemedProps;
 
 export function ThemedImageBackground({ style, imageStyle, lightColor, darkColor, ...otherProps }: ThemedImageBackgroundProps) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const { theme } = useThemeContext();
+  const colors = defaultColors[theme];
+  
   return <ImageBackground 
-    style={[{ backgroundColor }, style]} 
+    style={[{ backgroundColor: colors.background }, style]} 
     imageStyle={imageStyle}
     {...otherProps} 
   />;
 }
 
 // Function to get current theme type
-export function useTheme() {
+export function useCustomTheme() {
   const { theme } = useThemeContext();
   return theme;
 }
@@ -92,25 +176,17 @@ export function useTheme() {
 export function useThemeColors() {
   const { theme } = useThemeContext();
   return {
-    colors: theme === 'dark' ? {
-      background: '#151718',
-      text: '#ECEDEE',
-      card: '#1E1F20',
-      border: '#2C2D2E',
-      primary: '#0a7ea4',
-      secondary: '#687076',
-      accent: '#9BA1A6',
-      muted: '#454545'
-    } : {
-      background: '#FFFFFF',
-      text: '#11181C',
-      card: '#F1F3F5',
-      border: '#E6E8EB',
-      primary: '#0a7ea4',
-      secondary: '#687076',
-      accent: '#889096',
-      muted: '#F9F9F9'
-    },
-    isDark: theme === 'dark'
+    colors: defaultColors[theme],
+    isDark: theme === 'dark' || theme === 'amoled',
+    isAmoled: theme === 'amoled'
   };
-} 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+}); 

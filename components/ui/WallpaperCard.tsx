@@ -1,8 +1,8 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
-import { ThemedView } from '../ThemedView';
-import { ThemedText } from '../ThemedText';
+import { ThemedView, ThemedText } from '../ThemedComponents';
+import { fontStyles } from '../../utils/fontStyles';
 
 type WallpaperCardProps = {
   id: string;
@@ -21,7 +21,7 @@ export function WallpaperCard({ id, thumbUrl, resolution }: WallpaperCardProps) 
             resizeMode="cover"
           />
           <ThemedView style={styles.overlay}>
-            <ThemedText style={styles.resolution}>{resolution}</ThemedText>
+            <ThemedText style={[styles.resolution, fontStyles.regular]}>{resolution}</ThemedText>
           </ThemedView>
         </ThemedView>
       </Pressable>

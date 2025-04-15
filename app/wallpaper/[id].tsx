@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useThemeContext } from '../../contexts/ThemeContext';
+import { fontStyles } from '../../utils/fontStyles';
 
 const { width, height } = Dimensions.get('window');
 
@@ -437,6 +438,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
+    ...fontStyles.regular,
     fontSize: 16,
   },
   infoCard: {
@@ -459,7 +461,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   metaLabel: {
-    color: theme => theme.colors.outline,
+    ...fontStyles.semiBold,
+    fontSize: 12,
+    opacity: 0.7,
   },
   metaValue: {
     fontWeight: '500',
@@ -554,5 +558,59 @@ const styles = StyleSheet.create({
   },
   footer: {
     height: 80,
+  },
+  metaText: {
+    ...fontStyles.regular,
+    fontSize: 14,
+  },
+  metaLabel: {
+    ...fontStyles.semiBold,
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  tagText: {
+    ...fontStyles.regular,
+    fontSize: 12,
+  },
+  resolutionText: {
+    ...fontStyles.semiBold,
+    fontSize: 16,
+  },
+  categoryText: {
+    ...fontStyles.regular,
+    fontSize: 14,
+  },
+  purityText: {
+    ...fontStyles.regular,
+    fontSize: 14,
+  },
+  favoritesText: {
+    ...fontStyles.regular,
+    fontSize: 14,
+  },
+  viewsText: {
+    ...fontStyles.regular,
+    fontSize: 14,
+  },
+  uploaderText: {
+    ...fontStyles.semiBold,
+    fontSize: 14,
+  },
+  uploadDateText: {
+    ...fontStyles.regular,
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  dialogTitle: {
+    ...fontStyles.bold,
+    fontSize: 20,
+  },
+  dialogContent: {
+    ...fontStyles.regular,
+    fontSize: 16,
+  },
+  dialogButton: {
+    ...fontStyles.semiBold,
+    fontSize: 16,
   },
 }); 
