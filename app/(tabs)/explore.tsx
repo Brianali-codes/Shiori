@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert } from 'react-native';
-import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton, Button } from 'react-native-paper';
-import { ThemedView, ThemedText } from '@/components/ThemedComponents';
+import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform } from 'react-native';
+import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
+import { ThemedView } from '@/components/ThemedComponents';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { TouchableOpacity } from 'react-native-gesture-handler';
+import { HeartIcon } from '@/components/ui/CustomIcons';
 
 export default function ExploreScreen() {
   const [wallpapers, setWallpapers] = useState<WallpaperPreview[]>([]);
@@ -17,22 +21,31 @@ export default function ExploreScreen() {
   const [selectedSort, setSelectedSort] = useState('date_added');
   const [selectedOrder, setSelectedOrder] = useState('desc');
   const [showNsfwContent, setShowNsfwContent] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const theme = useTheme();
 
-  // Load NSFW setting on component mount
+  // Load NSFW setting and favorites on component mount
   useEffect(() => {
-    const loadNsfwSetting = async () => {
+    const loadSettings = async () => {
       try {
+        // Load NSFW setting
         const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
         if (nsfwSetting !== null) {
           setShowNsfwContent(nsfwSetting === 'true');
         }
+        
+        // Load favorites
+        const savedFavorites = await AsyncStorage.getItem('favorites');
+        if (savedFavorites) {
+          const parsedFavorites = JSON.parse(savedFavorites);
+          setFavorites(parsedFavorites.map((item: WallpaperPreview) => item.id));
+        }
       } catch (error) {
-        console.error('Failed to load NSFW setting:', error);
+        console.error('Failed to load settings:', error);
       }
     };
     
-    loadNsfwSetting();
+    loadSettings();
   }, []);
 
   const sortOptions = [
@@ -48,6 +61,34 @@ export default function ExploreScreen() {
     { id: 'desc', label: 'Descending' },
     { id: 'asc', label: 'Ascending' },
   ];
+  
+  const toggleFavorite = async (wallpaper: WallpaperPreview) => {
+    try {
+      const savedFavorites = await AsyncStorage.getItem('favorites');
+      let favoritesArray: WallpaperPreview[] = [];
+      
+      if (savedFavorites) {
+        favoritesArray = JSON.parse(savedFavorites);
+      }
+      
+      // Check if already in favorites
+      const isFavorite = favorites.includes(wallpaper.id);
+      
+      if (isFavorite) {
+        // Remove from favorites
+        const updatedFavorites = favoritesArray.filter(item => item.id !== wallpaper.id);
+        await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+        setFavorites(updatedFavorites.map(item => item.id));
+      } else {
+        // Add to favorites
+        favoritesArray.push(wallpaper);
+        await AsyncStorage.setItem('favorites', JSON.stringify(favoritesArray));
+        setFavorites([...favorites, wallpaper.id]);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
 
   const loadWallpapers = async () => {
     try {
@@ -90,124 +131,144 @@ export default function ExploreScreen() {
     loadWallpapers();
   }, [searchQuery, selectedSort, selectedOrder]);
 
-  const renderWallpaper = ({ item }: { item: WallpaperPreview }) => (
-    <Card style={styles.wallpaperCard} mode="elevated">
-      <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
-      <Card.Content style={styles.wallpaperContent}>
-        <View style={styles.wallpaperInfo}>
-          <Text variant="bodyMedium" style={styles.resolution}>
-            {item.resolution}
-          </Text>
-          <View style={styles.actions}>
-            <Button
-              mode="contained"
-              compact
-              onPress={() => {}}
-              style={styles.favoriteButton}
-              icon="heart"
-            >
-              Favorite
-            </Button>
-            <IconButton
-              icon={({ size, color }) => (
-                <IconSymbol name="square.and.arrow.down.fill" size={size} color={color} />
-              )}
-              size={20}
-              onPress={() => {}}
-            />
-          </View>
+  const renderWallpaper = ({ item }: { item: WallpaperPreview }) => {
+    const isFavorite = favorites.includes(item.id);
+    
+    return (
+      <Card style={styles.wallpaperCard} mode="elevated">
+        <View style={styles.wallpaperContainer}>
+          <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
+          
+          {/* Glassmorphic favorite button */}
+          <TouchableOpacity 
+            style={styles.favoriteButton}
+            onPress={() => toggleFavorite(item)}
+          >
+            <BlurView intensity={25} tint="dark" style={styles.blurView}>
+              <HeartIcon
+                size={22}
+                color="#FFFFFF"
+                isFilled={isFavorite}
+                style={styles.heartIcon}
+              />
+            </BlurView>
+          </TouchableOpacity>
+          
+          {/* Image info overlay */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            style={styles.infoGradient}
+          >
+            <Text style={styles.resolutionText}>{item.resolution}</Text>
+          </LinearGradient>
         </View>
-      </Card.Content>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   return (
-    <ThemedView style={styles.container}>
-      <StatusBar style="auto" />
-      <Stack.Screen
-        options={{
-          title: 'Explore',
-          headerShadowVisible: false,
-        }}
-      />
-
-      <Searchbar
-        placeholder="Search wallpapers..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchBar}
-      />
-
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
-          {sortOptions.map((sort) => (
-            <Chip
-              key={sort.id}
-              selected={selectedSort === sort.id}
-              onPress={() => setSelectedSort(sort.id)}
-              style={styles.sortChip}
-            >
-              {sort.label}
-            </Chip>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderScroll}>
-          {orderOptions.map((order) => (
-            <Chip
-              key={order.id}
-              selected={selectedOrder === order.id}
-              onPress={() => setSelectedOrder(order.id)}
-              style={styles.orderChip}
-            >
-              {order.label}
-            </Chip>
-          ))}
-        </ScrollView>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : (
-        <FlatList
-          data={wallpapers}
-          renderItem={renderWallpaper}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.wallpaperList}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+    <SafeAreaView style={styles.safeArea} edges={['top', 'right', 'left', 'bottom']}>
+      <ThemedView style={styles.container}>
+        <StatusBar style="auto" />
+        <Stack.Screen
+          options={{
+            title: 'Explore',
+            headerShadowVisible: false,
+          }}
         />
-      )}
-    </ThemedView>
+
+        <View style={styles.contentContainer}>
+          <Searchbar
+            placeholder="Search wallpapers..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+          />
+
+          <View style={styles.filterContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
+              {sortOptions.map((sort) => (
+                <Chip
+                  key={sort.id}
+                  selected={selectedSort === sort.id}
+                  onPress={() => setSelectedSort(sort.id)}
+                  style={styles.sortChip}
+                >
+                  {sort.label}
+                </Chip>
+              ))}
+            </ScrollView>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderScroll}>
+              {orderOptions.map((order) => (
+                <Chip
+                  key={order.id}
+                  selected={selectedOrder === order.id}
+                  onPress={() => setSelectedOrder(order.id)}
+                  style={styles.orderChip}
+                >
+                  {order.label}
+                </Chip>
+              ))}
+            </ScrollView>
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+          ) : (
+            <FlatList
+              data={wallpapers}
+              renderItem={renderWallpaper}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              contentContainerStyle={styles.wallpaperList}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              showsVerticalScrollIndicator={false}
+              columnWrapperStyle={styles.columnWrapper}
+            />
+          )}
+        </View>
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
   searchBar: {
-    margin: 16,
+    margin: 8,
     borderRadius: 16,
+    elevation: 2,
   },
   filterContainer: {
-    paddingHorizontal: 16,
+    marginHorizontal: 4,
   },
   sortScroll: {
     marginBottom: 8,
   },
   orderScroll: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sortChip: {
     marginRight: 8,
+    marginLeft: 4,
   },
   orderChip: {
     marginRight: 8,
+    marginLeft: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -215,33 +276,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wallpaperList: {
-    padding: 8,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 80,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
   wallpaperCard: {
-    flex: 1,
-    margin: 8,
+    width: '48%',
+    marginBottom: 16,
     borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  wallpaperContainer: {
+    position: 'relative',
   },
   wallpaperImage: {
     aspectRatio: 1,
-    borderRadius: 16,
-  },
-  wallpaperContent: {
-    padding: 8,
-  },
-  wallpaperInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  resolution: {
-    opacity: 0.7,
-  },
-  actions: {
-    flexDirection: 'row',
+    borderRadius: 0,
   },
   favoriteButton: {
-    marginRight: 8,
-    borderRadius: 8,
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 2,
+  },
+  blurView: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heartIcon: {
+    marginTop: 2, // Visual alignment
+  },
+  infoGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  resolutionText: {
+    color: 'white',
+    fontSize: 12,
+    fontFamily: 'Nunito-Medium',
   },
 });

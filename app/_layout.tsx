@@ -6,17 +6,50 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, useThemeContext } from '../contexts/ThemeContext';
 import { Colors } from '../constants/Colors';
+import { FontSizes } from '../constants/FontSizes';
 import { fonts } from '../theme/fonts';
+import { initFontSize } from '../services/fontSizeService';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-// Custom Paper themes
+// Adjust font sizes globally
+const baseFontConfig = {
+  fontFamily: 'Nunito-Regular',
+  fontWeight: 'normal' as 'normal',
+  letterSpacing: 0,
+};
+
+// Custom Paper themes with smaller font sizes
 const CustomLightTheme = {
   ...MD3LightTheme,
+  fonts: {
+    ...MD3LightTheme.fonts,
+    displayLarge: { ...baseFontConfig, fontSize: FontSizes.h1 * 1.2 },
+    displayMedium: { ...baseFontConfig, fontSize: FontSizes.h1 * 1.1 },
+    displaySmall: { ...baseFontConfig, fontSize: FontSizes.h1 },
+    
+    headlineLarge: { ...baseFontConfig, fontSize: FontSizes.h1, fontFamily: 'Nunito-Bold' },
+    headlineMedium: { ...baseFontConfig, fontSize: FontSizes.h2, fontFamily: 'Nunito-Bold' },
+    headlineSmall: { ...baseFontConfig, fontSize: FontSizes.h3, fontFamily: 'Nunito-Bold' },
+    
+    titleLarge: { ...baseFontConfig, fontSize: FontSizes.h3, fontFamily: 'Nunito-SemiBold' },
+    titleMedium: { ...baseFontConfig, fontSize: FontSizes.h4, fontFamily: 'Nunito-SemiBold' },
+    titleSmall: { ...baseFontConfig, fontSize: FontSizes.bodySmall, fontFamily: 'Nunito-SemiBold' },
+    
+    bodyLarge: { ...baseFontConfig, fontSize: FontSizes.body },
+    bodyMedium: { ...baseFontConfig, fontSize: FontSizes.bodySmall },
+    bodySmall: { ...baseFontConfig, fontSize: FontSizes.caption },
+    
+    labelLarge: { ...baseFontConfig, fontSize: FontSizes.body, fontFamily: 'Nunito-Medium' },
+    labelMedium: { ...baseFontConfig, fontSize: FontSizes.bodySmall, fontFamily: 'Nunito-Medium' },
+    labelSmall: { ...baseFontConfig, fontSize: FontSizes.caption, fontFamily: 'Nunito-Medium' },
+  },
   colors: {
     ...MD3LightTheme.colors,
     primary: Colors.light.tint,
@@ -29,8 +62,10 @@ const CustomLightTheme = {
   },
 };
 
+// Apply the same font configuration to dark theme
 const CustomDarkTheme = {
   ...MD3DarkTheme,
+  fonts: CustomLightTheme.fonts, // Reuse the same font config
   colors: {
     ...MD3DarkTheme.colors,
     primary: Colors.dark.tint,
@@ -43,8 +78,10 @@ const CustomDarkTheme = {
   },
 };
 
+// Apply the same font configuration to amoled theme
 const CustomAmoledTheme = {
   ...MD3DarkTheme,
+  fonts: CustomLightTheme.fonts, // Reuse the same font config
   colors: {
     ...MD3DarkTheme.colors,
     primary: Colors.amoled.tint,
@@ -109,9 +146,20 @@ function NavigationRoot() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
+    async function prepare() {
+      try {
+        // Initialize font size service
+        await initFontSize();
+      } catch (error) {
+        console.error('Failed to initialize font size service:', error);
+      }
+      
+      if (fontsLoaded) {
+        SplashScreen.hideAsync();
+      }
     }
+    
+    prepare();
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
@@ -121,7 +169,7 @@ function NavigationRoot() {
   return (
     <PaperProvider theme={paperTheme}>
       <NavigationThemeProvider value={navigationTheme}>
-        <Stack>
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>
@@ -134,8 +182,12 @@ function NavigationRoot() {
 // Root layout with ThemeProvider
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <NavigationRoot />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <NavigationRoot />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

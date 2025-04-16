@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, ToastAndroid, Platform, Alert } from 'react-native';
 import { Button, Text, TextInput, useTheme, Divider } from 'react-native-paper';
-import { MessageQuestion, Clipboard, DeviceMessage, Message, Document, InfoCircle } from 'iconsax-react-nativejs';
+import { DeviceMessage, Message, Document, InfoCircle } from 'iconsax-react-nativejs';
 import * as ExpoClipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeContext } from '@/contexts/ThemeContext';
+import { FontSizes } from '@/constants/FontSizes';
 
 const EMAIL_ADDRESS = 'brianali427@gmail.com';
 const GITHUB_ISSUES = 'https://github.com/brianali-codes/shiori/issues';
@@ -61,139 +63,135 @@ export default function BugReportScreen() {
   const deviceInfo = `${Platform.OS} ${Platform.Version}`;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Stack.Screen 
-        options={{ 
-          title: 'Report a Bug', 
-          headerShown: false,
-          headerTitleStyle: {
-            fontFamily: 'Nunito-Bold'
-          }
-        }} 
-      />
-      
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerContainer}>
-          <MessageQuestion
-            size={48}
-            color={getIconColor()}
-            variant="Broken"
-          />
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen 
+          options={{ 
+            title: 'Report a Bug',
+            headerTitleStyle: {
+              fontFamily: 'Nunito-Bold',
+              fontSize: FontSizes.h3
+            },
+            headerShadowVisible: false
+          }} 
+        />
+        
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <Text 
-            variant="headlineMedium" 
+            variant="headlineSmall" 
             style={[styles.headerText, { color: colors.text, fontFamily: 'Nunito-Bold' }]}
           >
             Report a Bug
           </Text>
-        </View>
-        
-        <Text style={[styles.description, { color: colors.text, fontFamily: 'Nunito-Regular' }]}>
-          Found something in Shiori that doesn't work right? Let us know and we'll fix it as soon as possible.
-        </Text>
-        
-        <View style={styles.formContainer}>
-          <TextInput
-            label="Bug Title"
-            value={title}
-            onChangeText={setTitle}
-            mode="outlined"
-            style={[styles.input, { fontFamily: 'Nunito-Regular' }]}
-            placeholder="Brief description of the issue"
-          />
           
-          <TextInput
-            label="Bug Description"
-            value={description}
-            onChangeText={setDescription}
-            mode="outlined"
-            multiline
-            numberOfLines={6}
-            style={[styles.textArea, { fontFamily: 'Nunito-Regular' }]}
-            placeholder="Please describe what happened, what you expected to happen, and steps to reproduce the issue"
-          />
-          
-          <TextInput
-            label="Your Email (optional)"
-            value={email}
-            onChangeText={setEmail}
-            mode="outlined"
-            style={[styles.input, { fontFamily: 'Nunito-Regular' }]}
-            placeholder="Your email for follow-up questions"
-            keyboardType="email-address"
-          />
-
-          <Button 
-            mode="outlined" 
-            onPress={handleSubmit} 
-            style={styles.button}
-            labelStyle={{ fontFamily: 'Nunito-Bold' }}
-          >
-            Submit Bug Report
-          </Button>
-        </View>
-        
-        <Divider style={styles.divider} />
-        
-        <View style={styles.alternateContainer}>
-          <Text style={[styles.alternateHeader, { color: colors.text, fontFamily: 'Nunito-Bold' }]}>
-            Alternative Ways to Report
+          <Text style={[styles.description, { color: colors.text, fontFamily: 'Nunito-Regular' }]}>
+            Found something in Shiori that doesn't work right? Let us know and we'll fix it as soon as possible.
           </Text>
           
-          <View style={styles.contactMethod}>
-            <Message
-              size={24}
-              color={getIconColor()}
-              variant="Broken"
+          <View style={styles.formContainer}>
+            <TextInput
+              label="Bug Title"
+              value={title}
+              onChangeText={setTitle}
+              mode="outlined"
+              style={[styles.input, { fontFamily: 'Nunito-Regular' }]}
+              placeholder="Brief description of the issue"
             />
-            <Text style={[styles.contactText, { color: colors.text, fontFamily: 'Nunito-Regular' }]}>
-              Email us directly: 
-            </Text>
+            
+            <TextInput
+              label="Bug Description"
+              value={description}
+              onChangeText={setDescription}
+              mode="outlined"
+              multiline
+              numberOfLines={6}
+              style={[styles.textArea, { fontFamily: 'Nunito-Regular' }]}
+              placeholder="Please describe what happened, what you expected to happen, and steps to reproduce the issue"
+            />
+            
+            <TextInput
+              label="Your Email (optional)"
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              style={[styles.input, { fontFamily: 'Nunito-Regular' }]}
+              placeholder="Your email for follow-up questions"
+              keyboardType="email-address"
+            />
+
             <Button 
-              mode="text" 
-              onPress={handleCopyEmail} 
-              style={styles.contactButton}
-              labelStyle={{ fontFamily: 'Nunito-Medium' }}
+              mode="outlined" 
+              onPress={handleSubmit} 
+              style={styles.button}
+              labelStyle={{ fontFamily: 'Nunito-Bold', fontSize: FontSizes.button }}
             >
-              {EMAIL_ADDRESS}
+              Submit Bug Report
             </Button>
           </View>
           
-          <View style={styles.contactMethod}>
-            <Document
-              size={24}
-              color={getIconColor()}
-              variant="Broken"
-            />
-            <Text style={[styles.contactText, { color: colors.text, fontFamily: 'Nunito-Regular' }]}>
-              Open an issue on GitHub
+          <Divider style={styles.divider} />
+          
+          <View style={styles.alternateContainer}>
+            <Text style={[styles.alternateHeader, { color: colors.text, fontFamily: 'Nunito-Bold' }]}>
+              Alternative Ways to Report
             </Text>
+            
+            <View style={styles.contactMethod}>
+              <Message
+                size={22}
+                color={getIconColor()}
+                variant="Broken"
+              />
+              <Text style={[styles.contactText, { color: colors.text, fontFamily: 'Nunito-Regular' }]}>
+                Email us directly: 
+              </Text>
+              <Button 
+                mode="text" 
+                onPress={handleCopyEmail} 
+                style={styles.contactButton}
+                labelStyle={{ fontFamily: 'Nunito-Medium', fontSize: FontSizes.button }}
+              >
+                {EMAIL_ADDRESS}
+              </Button>
+            </View>
+            
+            <View style={styles.contactMethod}>
+              <Document
+                size={22}
+                color={getIconColor()}
+                variant="Broken"
+              />
+              <Text style={[styles.contactText, { color: colors.text, fontFamily: 'Nunito-Regular' }]}>
+                Open an issue on GitHub
+              </Text>
+            </View>
           </View>
-        </View>
-        
-        <View style={styles.infoContainer}>
-          <View style={styles.infoRow}>
-            <InfoCircle
-              size={16}
-              color={colors.subtext}
-              variant="Broken"
-            />
-            <Text style={[styles.infoText, { color: colors.subtext, fontFamily: 'Nunito-Regular' }]}>
-              App Version: {appVersion}
-            </Text>
+          
+          <View style={styles.infoContainer}>
+            <View style={styles.infoRow}>
+              <InfoCircle
+                size={16}
+                color={colors.subtext}
+                variant="Broken"
+              />
+              <Text style={[styles.infoText, { color: colors.subtext, fontFamily: 'Nunito-Regular' }]}>
+                App Version: {appVersion}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <DeviceMessage
+                size={16}
+                color={colors.subtext}
+                variant="Broken"
+              />
+              <Text style={[styles.infoText, { color: colors.subtext, fontFamily: 'Nunito-Regular' }]}>
+                Device: {deviceInfo}
+              </Text>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <DeviceMessage
-              size={16}
-              color={colors.subtext}
-              variant="Broken"
-            />
-            <Text style={[styles.infoText, { color: colors.subtext, fontFamily: 'Nunito-Regular' }]}>
-              Device: {deviceInfo}
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -207,29 +205,25 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
   headerText: {
-    marginLeft: 12,
-    color: '#000000',
-    fontSize:16,
+    marginBottom: 8,
+    fontSize: FontSizes.h2,
   },
   description: {
-    fontSize: 16,
+    fontSize: FontSizes.body,
     marginBottom: 24,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   formContainer: {
     marginBottom: 24,
   },
   input: {
     marginBottom: 16,
+    fontSize: FontSizes.input,
   },
   textArea: {
     marginBottom: 16,
+    fontSize: FontSizes.input,
   },
   button: {
     marginTop: 8,
@@ -242,7 +236,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   alternateHeader: {
-    fontSize: 18,
+    fontSize: FontSizes.h4,
     marginBottom: 16,
   },
   contactMethod: {
@@ -252,7 +246,7 @@ const styles = StyleSheet.create({
   },
   contactText: {
     marginLeft: 8,
-    fontSize: 16,
+    fontSize: FontSizes.body,
   },
   contactButton: {
     marginLeft: 4,
@@ -266,7 +260,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: FontSizes.bodySmall,
     marginLeft: 8,
   },
 }); 

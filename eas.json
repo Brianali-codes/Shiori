@@ -1,0 +1,50 @@
+{
+  "cli": {
+    "version": ">= 3.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug",
+        "withoutCredentials": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "withoutCredentials": true,
+        "cache": {
+          "key": "gradle-preview"
+        }
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
+      }
+    },
+    "test": {
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "withoutCredentials": true,
+        "cache": {
+          "key": "test-build-cache"
+        },
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://api.wallhaven.cc"
+        }
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+} 

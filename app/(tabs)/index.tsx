@@ -9,6 +9,8 @@ import { WallpaperCard } from '@/components/ui/WallpaperCard';
 import { wallhavenAPI, WallpaperPreview, SearchParams } from '../services/wallhaven';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontSizes } from '@/constants/FontSizes';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -20,7 +22,6 @@ const featuredCollections = [
     icon: 'leaf.fill', 
     color: '#4CAF50', 
     query: 'nature',
-    imageUrl: 'https://w.wallhaven.cc/full/m3/wallhaven-m3oq1m.jpg'
   },
   { 
     id: '2', 
@@ -28,7 +29,6 @@ const featuredCollections = [
     icon: 'scribble', 
     color: '#9C27B0', 
     query: 'abstract',
-    imageUrl: 'https://w.wallhaven.cc/full/j3/wallhaven-j3m8y5.png'
   },
   { 
     id: '3', 
@@ -36,7 +36,6 @@ const featuredCollections = [
     icon: 'square.fill', 
     color: '#607D8B', 
     query: 'minimal',
-    imageUrl: 'https://w.wallhaven.cc/full/yx/wallhaven-yxq7kd.jpg'
   },
   { 
     id: '4', 
@@ -44,7 +43,6 @@ const featuredCollections = [
     icon: 'mountain.2.fill', 
     color: '#FF9800', 
     query: 'landscape',
-    imageUrl: 'https://w.wallhaven.cc/full/x8/wallhaven-x8ye3z.jpg'
   },
   { 
     id: '5', 
@@ -52,7 +50,6 @@ const featuredCollections = [
     icon: 'moon.fill', 
     color: '#212121', 
     query: 'dark',
-    imageUrl: 'https://w.wallhaven.cc/full/we/wallhaven-we62dr.jpg'
   },
   { 
     id: '6', 
@@ -60,7 +57,6 @@ const featuredCollections = [
     icon: 'sparkles.fill', 
     color: '#E91E63', 
     query: 'anime',
-    imageUrl: 'https://w.wallhaven.cc/full/ex/wallhaven-ex9gwo.png'
   },
 ];
 
@@ -70,6 +66,8 @@ export default function HomeScreen() {
   const [featuredWallpapers, setFeaturedWallpapers] = useState<WallpaperPreview[]>([]);
   const [latestWallpapers, setLatestWallpapers] = useState<WallpaperPreview[]>([]);
   const [topWallpapers, setTopWallpapers] = useState<WallpaperPreview[]>([]);
+  const [categoryWallpapers, setCategoryWallpapers] = useState<{ [key: string]: WallpaperPreview }>({});
+  const [moreWallpapers, setMoreWallpapers] = useState<WallpaperPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,6 +143,25 @@ export default function HomeScreen() {
         // Fetch top wallpapers
         const topResponse = await wallhavenAPI.getToplist();
         setTopWallpapers(topResponse.data.slice(0, 6));
+
+        // Fetch category preview images
+        const categoryPreviews: { [key: string]: WallpaperPreview } = {};
+        for (const category of featuredCollections) {
+          const response = await wallhavenAPI.search({ 
+            q: category.query, 
+            page: 1
+          });
+          if (response.data.length > 0) {
+            categoryPreviews[category.id] = response.data[0];
+          }
+        }
+        setCategoryWallpapers(categoryPreviews);
+
+        // Fetch more wallpapers for the bottom section
+        const moreResponse = await wallhavenAPI.search({ 
+          page: 1
+        });
+        setMoreWallpapers(moreResponse.data);
       } catch (error) {
         console.error('Failed to fetch home data:', error);
       } finally {
@@ -194,13 +211,45 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  const renderWallpaperItem = ({ item, sectionTitle }: { item: WallpaperPreview, sectionTitle: string }) => (
+    <TouchableOpacity 
+      style={styles.wallpaperItem}
+      onPress={() => navigateToWallpaper(item.id)}
+      activeOpacity={0.9}
+    >
+      <Image 
+        source={{ uri: item.thumbs.large }} 
+        style={styles.wallpaperImage}
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.8)']}
+        style={styles.wallpaperGradient}
+      >
+        <View style={styles.wallpaperInfo}>
+          <Text style={styles.wallpaperSection}>{sectionTitle}</Text>
+          <View style={styles.wallpaperMeta}>
+            <View style={styles.metaItem}>
+              <IconSymbol name="rectangle.stack.fill" size={14} color="white" />
+              <Text style={styles.wallpaperText}>{item.resolution}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <IconSymbol name="heart.fill" size={14} color="white" />
+              <Text style={styles.wallpaperText}>{item.favorites}</Text>
+            </View>
+          </View>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+
   const renderCollectionItem = ({ item }: { item: typeof featuredCollections[0] }) => (
     <TouchableOpacity 
+      key={item.id}
       style={styles.collectionItem}
       onPress={() => navigateToCategory(item.query)}
     >
       <Image 
-        source={{ uri: item.imageUrl }} 
+        source={{ uri: categoryWallpapers[item.id]?.thumbs.large }} 
         style={styles.collectionImage}
       />
       <Text style={styles.collectionTitle}>{item.title}</Text>
@@ -281,153 +330,178 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading amazing wallpapers...</Text>
-      </ThemedView>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <ThemedView style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading amazing wallpapers...</Text>
+        </ThemedView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <StatusBar style="auto" />
-      <Stack.Screen
-        options={{
-          headerShown: false,
-          title: 'Shiori',
-          headerShadowVisible: false,
-          headerTitleStyle: styles.headerTitle,
-          headerStyle: { backgroundColor: theme.colors.background },
-        }}
-      />
-      
-      <Searchbar
-        placeholder="Search wallpapers..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchBar}
-      />
-
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-          {categories.map((category) => (
-            <Chip
-              key={category.id}
-              selected={selectedCategory === category.id}
-              onPress={() => setSelectedCategory(category.id)}
-              style={styles.categoryChip}
-            >
-              {category.label}
-            </Chip>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
-          {purityLevels.map((purity) => (
-            <Chip
-              key={purity.id}
-              selected={selectedPurity === purity.id}
-              onPress={() => setSelectedPurity(purity.id)}
-              style={styles.purityChip}
-            >
-              {purity.label}
-            </Chip>
-          ))}
-        </ScrollView>
-      </View>
-
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
-          <Button 
-            mode="text" 
-            onPress={() => router.push('/explore')}
-            compact
-          >
-            See all
-          </Button>
-        </View>
-        
-        <FlatList
-          data={featuredWallpapers}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={renderFeaturedItem}
-          contentContainerStyle={styles.featuredList}
-          snapToInterval={ITEM_WIDTH + 16}
-          decelerationRate="fast"
-          snapToAlignment="center"
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <ThemedView style={styles.container}>
+        <StatusBar style="auto" />
+        <Stack.Screen
+          options={{
+            headerShown: false,
+            title: 'Shiori',
+            headerShadowVisible: false,
+            headerTitleStyle: styles.headerTitle,
+            headerStyle: { backgroundColor: theme.colors.background },
+          }}
         />
         
-        <Text variant="titleMedium" style={styles.categoriesTitle}>Popular Categories</Text>
-        
-        <View style={styles.collectionsGrid}>
-          {featuredCollections.map(item => (
-            <TouchableOpacity 
-              key={item.id}
-              style={styles.collectionItem}
-              onPress={() => navigateToCategory(item.query)}
-            >
-              <Image 
-                source={{ uri: item.imageUrl }} 
-                style={styles.collectionImage}
-              />
-              <Text style={styles.collectionTitle}>{item.title}</Text>
-            </TouchableOpacity>
-          ))}
+        <Searchbar
+          placeholder="Search wallpapers..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+        />
+
+        <View style={styles.filterContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+            {categories.map((category) => (
+              <Chip
+                key={category.id}
+                selected={selectedCategory === category.id}
+                onPress={() => setSelectedCategory(category.id)}
+                style={styles.categoryChip}
+              >
+                {category.label}
+              </Chip>
+            ))}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
+            {purityLevels.map((purity) => (
+              <Chip
+                key={purity.id}
+                selected={selectedPurity === purity.id}
+                onPress={() => setSelectedPurity(purity.id)}
+                style={styles.purityChip}
+              >
+                {purity.label}
+              </Chip>
+            ))}
+          </ScrollView>
         </View>
-        
-        <View style={styles.section}>
+
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Latest Additions</Text>
-            <Button
-              mode="text"
+            <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
+            <Button 
+              mode="text" 
               onPress={() => router.push('/explore')}
               compact
             >
-              More
+              See all
             </Button>
           </View>
           
-          <View style={styles.wallpapersGrid}>
-            {latestWallpapers.map(wallpaper => (
-              <WallpaperCard
-                key={wallpaper.id}
-                id={wallpaper.id}
-                thumbUrl={wallpaper.thumbs.small}
-                resolution={wallpaper.resolution}
-              />
+          <FlatList
+            data={featuredWallpapers}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={renderFeaturedItem}
+            contentContainerStyle={styles.featuredList}
+            snapToInterval={ITEM_WIDTH + 16}
+            decelerationRate="fast"
+            snapToAlignment="center"
+          />
+          
+          <Text variant="titleMedium" style={styles.categoriesTitle}>Popular Categories</Text>
+          
+          <View style={styles.collectionsGrid}>
+            {featuredCollections.map(item => (
+              <TouchableOpacity 
+                key={item.id}
+                style={styles.collectionItem}
+                onPress={() => navigateToCategory(item.query)}
+              >
+                <Image 
+                  source={{ uri: categoryWallpapers[item.id]?.thumbs.large }} 
+                  style={styles.collectionImage}
+                />
+                <Text style={styles.collectionTitle}>{item.title}</Text>
+              </TouchableOpacity>
             ))}
-          </View>
-        </View>
-        
-        <View style={styles.section}>
-          <View style={styles.header}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Top Rated</Text>
-            <Button
-              mode="text"
-              onPress={() => router.push('/explore')}
-              compact
-            >
-              More
-            </Button>
           </View>
           
-          <View style={styles.wallpapersGrid}>
-            {topWallpapers.map(wallpaper => (
-              <WallpaperCard
-                key={wallpaper.id}
-                id={wallpaper.id}
-                thumbUrl={wallpaper.thumbs.small}
-                resolution={wallpaper.resolution}
-              />
-            ))}
+          <View style={styles.section}>
+            <View style={styles.header}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>Latest Additions</Text>
+              <Button
+                mode="text"
+                onPress={() => router.push('/explore')}
+                compact
+              >
+                More
+              </Button>
+            </View>
+            
+            <FlatList
+              data={latestWallpapers}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => renderWallpaperItem({ item, sectionTitle: 'Latest' })}
+              contentContainerStyle={styles.wallpapersList}
+              snapToInterval={width * 0.65 + 12}
+              decelerationRate="fast"
+              snapToAlignment="center"
+            />
           </View>
-        </View>
-        
-        <View style={styles.footer} />
-      </ScrollView>
-    </ThemedView>
+          
+          <View style={styles.section}>
+            <View style={styles.header}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>Top Rated</Text>
+              <Button
+                mode="text"
+                onPress={() => router.push('/explore')}
+                compact
+              >
+                More
+              </Button>
+            </View>
+            
+            <FlatList
+              data={topWallpapers}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => renderWallpaperItem({ item, sectionTitle: 'Top' })}
+              contentContainerStyle={styles.wallpapersList}
+              snapToInterval={width * 0.65 + 12}
+              decelerationRate="fast"
+              snapToAlignment="center"
+            />
+          </View>
+          
+          <View style={styles.section}>
+            <View style={styles.header}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>More Wallpapers</Text>
+            </View>
+            
+            <View style={styles.moreWallpapersGrid}>
+              {moreWallpapers.map((item) => (
+                <TouchableOpacity 
+                  key={item.id}
+                  style={styles.moreWallpaperItem}
+                  onPress={() => navigateToWallpaper(item.id)}
+                >
+                  <Image 
+                    source={{ uri: item.thumbs.large }} 
+                    style={styles.moreWallpaperImage}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          
+          <View style={styles.footer} />
+        </ScrollView>
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -440,7 +514,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: 'Nunito-Bold',
-    fontSize: 20,
+    fontSize: FontSizes.h2,
     height: 15,
   },
   header: {
@@ -452,7 +526,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
-    fontSize: 18,
+    fontSize: FontSizes.h3,
   },
   featuredList: {
     paddingLeft: 16,
@@ -490,12 +564,12 @@ const styles = StyleSheet.create({
   featuredText: {
     color: 'white',
     marginLeft: 4,
-    fontSize: 12,
+    fontSize: FontSizes.caption,
     fontFamily: 'Nunito-Regular',
   },
   categoriesTitle: {
     fontFamily: 'Nunito-Bold',
-    fontSize: 18,
+    fontSize: FontSizes.h3,
     marginLeft: 16,
     marginTop: 16,
     marginBottom: 12,
@@ -519,15 +593,60 @@ const styles = StyleSheet.create({
   },
   collectionTitle: {
     fontFamily: 'Nunito-SemiBold',
-    fontSize: 13,
+    fontSize: FontSizes.bodySmall,
   },
   section: {
     marginBottom: 24,
   },
-  wallpapersGrid: {
+  wallpapersList: {
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingBottom: 16,
+  },
+  wallpaperItem: {
+    width: width * 0.65,
+    height: 180,
+    marginRight: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  wallpaperImage: {
+    width: '100%',
+    height: '100%',
+  },
+  wallpaperGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    justifyContent: 'flex-end',
+    padding: 12,
+  },
+  wallpaperInfo: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  wallpaperSection: {
+    color: 'white',
+    fontSize: FontSizes.caption,
+    fontFamily: 'Nunito-Bold',
+    opacity: 0.9,
+    marginBottom: 4,
+  },
+  wallpaperMeta: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 8,
+    justifyContent: 'space-between',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wallpaperText: {
+    color: 'white',
+    marginLeft: 4,
+    fontSize: FontSizes.caption,
+    fontFamily: 'Nunito-Regular',
   },
   loadingContainer: {
     flex: 1,
@@ -538,6 +657,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     opacity: 0.7,
     fontFamily: 'Nunito-Regular',
+    fontSize: FontSizes.body,
   },
   footer: {
     height: 50,
@@ -566,22 +686,30 @@ const styles = StyleSheet.create({
     margin: 8,
     borderRadius: 16,
   },
-  wallpaperImage: {
-    aspectRatio: 1,
-    borderRadius: 16,
-  },
   wallpaperContent: {
     padding: 8,
   },
-  wallpaperInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   resolution: {
     opacity: 0.7,
+    fontSize: FontSizes.caption,
   },
   actions: {
     flexDirection: 'row',
   },
-});
+  moreWallpapersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    marginBottom: 24,
+  },
+  moreWallpaperItem: {
+    width: '33.33%',
+    aspectRatio: 1,
+    padding: 4,
+  },
+  moreWallpaperImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+} as const);

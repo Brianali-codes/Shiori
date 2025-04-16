@@ -4,10 +4,12 @@ import { Card, Text, ActivityIndicator, useTheme, IconButton, Button } from 'rea
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HeartIcon } from '@/components/ui/CustomIcons';
+import { ArrowDown } from 'iconsax-react-nativejs';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function FavoritesScreen() {
   const [favorites, setFavorites] = useState<WallpaperPreview[]>([]);
@@ -60,16 +62,12 @@ export default function FavoritesScreen() {
           </Text>
           <View style={styles.actions}>
             <IconButton
-              icon={({ size, color }) => (
-                <IconSymbol name="heart.slash.fill" size={size} color={color} />
-              )}
+              icon={() => <HeartIcon size={20} color={theme.colors.primary} isFilled={true} />}
               size={20}
               onPress={() => removeFromFavorites(item.id)}
             />
             <IconButton
-              icon={({ size, color }) => (
-                <IconSymbol name="square.and.arrow.down.fill" size={size} color={color} />
-              )}
+              icon={() => <ArrowDown size={20} color={theme.colors.primary} />}
               size={20}
               onPress={() => {}}
             />
@@ -80,49 +78,51 @@ export default function FavoritesScreen() {
   );
 
   return (
-    <ThemedView style={styles.container}>
-      <StatusBar style="auto" />
-      <Stack.Screen
-        options={{
-          title: 'Favorites',
-          headerShadowVisible: false,
-        }}
-      />
-
-      {favorites.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <IconSymbol name="heart.slash.fill" size={64} color={theme.colors.primary} />
-          <Text variant="titleMedium" style={styles.emptyText}>
-            No favorites yet
-          </Text>
-          <Text variant="bodyMedium" style={styles.emptySubtext}>
-            Start adding wallpapers to your favorites
-          </Text>
-          <Button
-            mode="contained"
-            onPress={() => {}}
-            style={styles.exploreButton}
-          >
-            Explore Wallpapers
-          </Button>
-        </View>
-      ) : loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : (
-        <FlatList
-          data={favorites}
-          renderItem={renderFavorite}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.favoritesList}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <ThemedView style={styles.container}>
+        <StatusBar style="auto" />
+        <Stack.Screen
+          options={{
+            title: 'Favorites',
+            headerShadowVisible: false,
+          }}
         />
-      )}
-    </ThemedView>
+
+        {favorites.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <HeartIcon size={64} color={theme.colors.primary} />
+            <Text variant="titleMedium" style={styles.emptyText}>
+              No favorites yet
+            </Text>
+            <Text variant="bodyMedium" style={styles.emptySubtext}>
+              Start adding wallpapers to your favorites
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => {}}
+              style={styles.exploreButton}
+            >
+              Explore Wallpapers
+            </Button>
+          </View>
+        ) : loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" />
+          </View>
+        ) : (
+          <FlatList
+            data={favorites}
+            renderItem={renderFavorite}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={styles.favoritesList}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          />
+        )}
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 

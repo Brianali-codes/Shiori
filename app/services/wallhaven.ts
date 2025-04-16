@@ -1,4 +1,5 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Types
 export interface Uploader {
@@ -78,12 +79,57 @@ export interface SearchParams {
   apikey?: string;             // API key
 }
 
+export interface UserSettings {
+  username: string;
+  email: string;
+  thumb_size: string;
+  per_page: number;
+  purity: {
+    sfw: boolean;
+    sketchy: boolean;
+    nsfw: boolean;
+  };
+  categories: {
+    general: boolean;
+    anime: boolean;
+    people: boolean;
+  };
+  resolutions: string[];
+  aspect_ratios: string[];
+  toplist_range: string;
+  tag_blacklist: string[];
+  user_blacklist: string[];
+}
+
 class WallhavenAPI {
   private baseURL = 'https://wallhaven.cc/api/v1';
   private apiKey?: string;
+  private highQualityMode: boolean = false;
   
   constructor(apiKey?: string) {
     this.apiKey = apiKey;
+    this.loadSettings();
+  }
+
+  private async loadSettings() {
+    try {
+      const highQualitySetting = await AsyncStorage.getItem('highQualityThumbs');
+      this.highQualityMode = highQualitySetting === 'true';
+    } catch (error) {
+      console.error('Failed to load high quality setting:', error);
+      this.highQualityMode = false;
+    }
+  }
+
+  setHighQualityMode(enabled: boolean) {
+    this.highQualityMode = enabled;
+    // Save the setting
+    AsyncStorage.setItem('highQualityThumbs', enabled ? 'true' : 'false');
+    return this;
+  }
+
+  isHighQualityMode(): boolean {
+    return this.highQualityMode;
   }
 
   setApiKey(apiKey: string) {
@@ -102,6 +148,33 @@ class WallhavenAPI {
     return params;
   }
 
+  // Process the response data to use appropriate thumbnail quality
+  private processWallpaperData(data: WallpaperPreview | WallpaperPreview[]): WallpaperPreview | WallpaperPreview[] {
+    // If high quality mode is enabled, use larger thumbnails
+    if (this.highQualityMode) {
+      if (Array.isArray(data)) {
+        return data.map(wallpaper => ({
+          ...wallpaper,
+          thumbs: {
+            ...wallpaper.thumbs,
+            small: wallpaper.thumbs.large, // Use large thumbs instead of small
+          }
+        }));
+      } else {
+        return {
+          ...data,
+          thumbs: {
+            ...data.thumbs,
+            small: data.thumbs.large, // Use large thumbs for small
+          }
+        };
+      }
+    }
+    
+    // Otherwise return original data
+    return data;
+  }
+
   async search(params: SearchParams = {}): Promise<WallhavenSearchResponse> {
     try {
       // Construct query parameters
@@ -118,7 +191,13 @@ class WallhavenAPI {
         }
       });
       
-      return response.data;
+      // Process response data for high quality if needed
+      const processedData = this.processWallpaperData(response.data.data) as WallpaperPreview[];
+      
+      return {
+        ...response.data,
+        data: processedData
+      };
     } catch (error) {
       console.error('Wallhaven API Error:', error);
       // Return empty response
@@ -144,7 +223,9 @@ class WallhavenAPI {
           'X-Requested-With': 'XMLHttpRequest',
         }
       });
-      return response.data.data;
+      
+      // Process for high quality if needed
+      return this.processWallpaperData(response.data.data) as WallpaperPreview;
     } catch (error) {
       console.error('Failed to get wallpaper details:', error);
       return null;
@@ -178,23 +259,41 @@ class WallhavenAPI {
     return this.search({ sorting: 'random', page, seed });
   }
 
-  async getUserSettings(): Promise<any | null> {
+  async getUserSettings(): Promise<UserSettings> {
     if (!this.apiKey) {
-      console.error('API key required for user settings');
-      return null;
+      throw new Error('API key is required for this operation');
     }
-    
+
+    const url = `${this.baseURL}/settings`;
     try {
-      const response = await axios.get(`${this.baseURL}/settings`, {
+      const response = await axios.get(url, {
         params: { apikey: this.apiKey },
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
         }
       });
-      return response.data.data;
+      if (!response.data) {
+        throw new Error('Failed to fetch user settings');
+      }
+      return response.data;
     } catch (error) {
-      console.error('Failed to get user settings:', error);
-      return null;
+      console.error('Error fetching user settings:', error);
+      throw error;
+    }
+  }
+
+  async validateApiKey(apiKey: string): Promise<boolean> {
+    const originalKey = this.apiKey;
+    this.apiKey = apiKey;
+
+    try {
+      await this.getUserSettings();
+      return true;
+    } catch (error) {
+      console.error('API key validation failed:', error);
+      return false;
+    } finally {
+      this.apiKey = originalKey;
     }
   }
 
@@ -227,6 +326,16 @@ class WallhavenAPI {
           'X-Requested-With': 'XMLHttpRequest',
         }
       });
+      
+      // Process for high quality if needed
+      if (response.data.data) {
+        const processedData = this.processWallpaperData(response.data.data) as WallpaperPreview[];
+        return {
+          ...response.data,
+          data: processedData
+        };
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Failed to get collection wallpapers:', error);
@@ -241,4 +350,9 @@ export const wallhavenAPI = new WallhavenAPI();
 // Function to update API key later if needed
 export function setWallhavenApiKey(apiKey: string) {
   return wallhavenAPI.setApiKey(apiKey);
+}
+
+// Function to set high quality mode
+export function setHighQualityMode(enabled: boolean) {
+  return wallhavenAPI.setHighQualityMode(enabled);
 } 

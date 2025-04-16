@@ -1,33 +1,55 @@
 {
   "expo": {
     "name": "Shiori",
-    "slug": "Shiori",
+    "slug": "shiori",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/shiori.png",
+    "scheme": "shiori",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/shiori.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "newArchEnabled": true,
+    "jsEngine": "hermes",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.brianali.shiori",
+      "jsEngine": "hermes",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/shiori.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.brianali.shiori",
+      "versionCode": 1,
+      "jsEngine": "hermes",
+      "enableProguardInReleaseBuilds": true,
+      "buildType": "apk",
+      "permissions": [
+        "INTERNET",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/shiori.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/shiori.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -35,7 +57,25 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
-    }
+      "typedRoutes": true,
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "419df35e-377d-469e-9a3a-3955eba9ba94"
+      },
+      "enableRamBundle": true,
+      "router": {
+        "origin": false
+      }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/419df35e-377d-469e-9a3a-3955eba9ba94"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "owner": "brianali"
   }
 }

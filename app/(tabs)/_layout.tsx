@@ -2,34 +2,35 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, View, StyleSheet, Text } from 'react-native';
 import { Home, LocationDiscover, Heart, InfoCircle, Setting } from 'iconsax-react-nativejs';
-
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { useTheme } from 'react-native-paper';
+import { FontSizes } from '@/constants/FontSizes';
 import { useThemeContext } from '@/contexts/ThemeContext';
 
-export default function TabLayout() {
-  const { colorScheme } = useColorScheme();
+function TabBar() {
   const { isDark, isAmoled } = useThemeContext();
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   
-  // Match icon colors to the theme
   const getTabIconColor = (focused: boolean) => {
-    // In dark or amoled mode, use white icons
     if (isDark || isAmoled) {
       return focused ? '#FFFFFF' : 'rgba(255, 255, 255, 0.6)';
+    } else {
+      return focused ? '#000000' : 'rgba(0, 0, 0, 0.6)';
     }
-    // In light mode, use black icons
-    return focused ? '#000000' : 'rgba(0, 0, 0, 0.6)';
   };
   
-  // Get tab bar background color based on theme
   const getTabBarBackground = () => {
     if (isAmoled) return '#000000'; // Pure black for AMOLED
     if (isDark) return '#121212';   // Dark gray for dark mode
     return '#FFFFFF';               // White for light mode
+  };
+
+  const tabLabelStyle = {
+    fontSize: FontSizes.tabLabel, 
+    fontFamily: 'Nunito-Medium',
+    marginTop: 2
   };
 
   return (
@@ -39,7 +40,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarShowLabel: false, // Hide default labels
+        tabBarShowLabel: false,
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute',
@@ -50,9 +51,10 @@ export default function TabLayout() {
             borderTopRightRadius: 16,
             overflow: 'hidden',
             backgroundColor: getTabBarBackground(),
+            paddingBottom: Math.max(10, insets.bottom),
           },
           default: {
-            height: 70,
+            height: 60,
             borderTopWidth: 0,
             elevation: 0,
             borderTopLeftRadius: 16,
@@ -71,15 +73,17 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <View style={styles.iconContainer}>
                 <Home
-                  size={28} 
+                  size={20} 
                   color={getTabIconColor(focused)}
-                  variant="Broken"
+                  variant={focused ? "Bold" : "Broken"}
                 />
               </View>
               {focused && (
-                <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                  Home
-                </Text>
+                <View style={styles.labelContainer}>
+                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
+                    Home
+                  </Text>
+                </View>
               )}
             </View>
           ),
@@ -93,15 +97,17 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <View style={styles.iconContainer}>
                 <LocationDiscover
-                  size={28} 
+                  size={20} 
                   color={getTabIconColor(focused)}
-                  variant="Broken"
+                  variant={focused ? "Bold" : "Broken"}
                 />
               </View>
               {focused && (
-                <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                  Explore
-                </Text>
+                <View style={styles.labelContainer}>
+                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
+                    Explore
+                  </Text>
+                </View>
               )}
             </View>
           ),
@@ -115,15 +121,17 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <View style={styles.iconContainer}>
                 <Heart
-                  size={28} 
+                  size={20} 
                   color={getTabIconColor(focused)}
-                  variant="Broken"
+                  variant={focused ? "Bold" : "Broken"}
                 />
               </View>
               {focused && (
-                <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                  Favorites
-                </Text>
+                <View style={styles.labelContainer}>
+                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
+                    Favorites
+                  </Text>
+                </View>
               )}
             </View>
           ),
@@ -137,15 +145,17 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <View style={styles.iconContainer}>
                 <InfoCircle
-                  size={28} 
+                  size={20} 
                   color={getTabIconColor(focused)}
-                  variant="Broken"
+                  variant={focused ? "Bold" : "Broken"}
                 />
               </View>
               {focused && (
-                <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                  Report
-                </Text>
+                <View style={styles.labelContainer}>
+                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
+                    Report
+                  </Text>
+                </View>
               )}
             </View>
           ),
@@ -159,15 +169,17 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <View style={styles.iconContainer}>
                 <Setting
-                  size={28} 
+                  size={20} 
                   color={getTabIconColor(focused)}
-                  variant="Broken"
+                  variant={focused ? "Bold" : "Broken"}
                 />
               </View>
               {focused && (
-                <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                  Settings
-                </Text>
+                <View style={styles.labelContainer}>
+                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
+                    Settings
+                  </Text>
+                </View>
               )}
             </View>
           ),
@@ -177,24 +189,42 @@ export default function TabLayout() {
   );
 }
 
+export default function TabLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <TabBar />
+    </GestureHandlerRootView>
+  );
+}
+
 const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 15,
-    paddingHorizontal: 8,
+    justifyContent: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     height: '100%',
+    width: 60,
   },
   iconContainer: {
-    width: 28,
-    height: 28,
+    width: 38,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
+  },
+  labelContainer: {
+    width: '100%',
+    overflow: 'visible',
   },
   tabLabel: {
-    fontSize: 10,
-    fontFamily: 'Nunito-Regular',
-    fontWeight: '500',
-    marginTop: 6,
+    fontSize: FontSizes.tabLabel,
+    fontFamily: 'Nunito-Medium',
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    marginTop: 1,
+    width: '100%',
+    lineHeight: 12,
+    height: 12,
   },
 });
