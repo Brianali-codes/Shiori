@@ -15,7 +15,6 @@ import { HeartIcon } from '@/components/ui/CustomIcons';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
-import { IconSymbol } from '@/components/ui/CustomIcons';
 import { FontSizes } from '@/constants/FontSizes';
 
 export default function ExploreScreen() {
@@ -248,11 +247,21 @@ export default function ExploreScreen() {
               <Text style={styles.resolutionText}>{item.resolution}</Text>
               <View style={styles.wallpaperMeta}>
                 <View style={styles.metaItem}>
-                  <IconSymbol name="rectangle.stack.fill" size={14} color="white" />
+                  <IconButton
+                    icon="image-size-select-actual"
+                    size={14}
+                    iconColor="white"
+                    style={styles.metaIcon}
+                  />
                   <Text style={styles.wallpaperText}>{item.resolution}</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <IconSymbol name="heart.fill" size={14} color="white" />
+                  <IconButton
+                    icon="heart"
+                    size={14}
+                    iconColor="white"
+                    style={styles.metaIcon}
+                  />
                   <Text style={styles.wallpaperText}>{item.favorites}</Text>
                 </View>
               </View>
@@ -463,5 +472,9 @@ const styles = StyleSheet.create({
   loadingMoreContainer: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+  metaIcon: {
+    margin: 0,
+    padding: 0,
   },
 });
