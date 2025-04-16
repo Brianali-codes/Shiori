@@ -108,6 +108,9 @@ export default function HomeScreen() {
   const [topWallpapers, setTopWallpapers] = useState<WallpaperPreview[]>([]);
   const [categoryWallpapers, setCategoryWallpapers] = useState<{ [key: string]: WallpaperPreview }>({});
   const [moreWallpapers, setMoreWallpapers] = useState<WallpaperPreview[]>([]);
+  const [morePage, setMorePage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -207,22 +210,9 @@ export default function HomeScreen() {
         });
         setTopWallpapers(topResponse.data.slice(0, 6));
 
-        // Fetch category preview images
-        const categoryPreviews: { [key: string]: WallpaperPreview } = {};
-        for (const category of featuredCollections) {
-          const response = await wallhavenAPI.search({ 
-            q: category.query, 
-            page: 1,
-            purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
-          });
-          if (response.data.length > 0) {
-            categoryPreviews[category.id] = response.data[0];
-          }
-        }
-        setCategoryWallpapers(categoryPreviews);
-
-        // Fetch more wallpapers for the bottom section
-        const moreResponse = await wallhavenAPI.search({ 
+        // Fetch initial more wallpapers
+        const moreResponse = await wallhavenAPI.search({
+          sorting: 'random',
           page: 1,
           purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
         });
@@ -401,6 +391,35 @@ export default function HomeScreen() {
     </Card>
   );
 
+  const loadMoreWallpapers = async () => {
+    if (loadingMore || !hasMore) return;
+    
+    try {
+      setLoadingMore(true);
+      const response = await wallhavenAPI.search({
+        sorting: 'random',
+        page: morePage,
+        purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
+      });
+      
+      if (response.data.length === 0) {
+        setHasMore(false);
+        return;
+      }
+      
+      setMoreWallpapers(prev => [...prev, ...response.data]);
+      setMorePage(prev => prev + 1);
+    } catch (error) {
+      console.error('Error loading more wallpapers:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleMoreWallpaperPress = (id: string) => {
+    router.push(`/wallpaper/${id}`);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
@@ -575,7 +594,7 @@ export default function HomeScreen() {
                 <TouchableOpacity 
                   key={item.id}
                   style={styles.moreWallpaperItem}
-                  onPress={() => navigateToWallpaper(item.id)}
+                  onPress={() => handleMoreWallpaperPress(item.id)}
                 >
                   <Image 
                     source={{ uri: item.thumbs.large }} 
@@ -584,6 +603,17 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            
+            {hasMore && (
+              <Button
+                mode="text"
+                onPress={loadMoreWallpapers}
+                loading={loadingMore}
+                style={styles.loadMoreButton}
+              >
+                Load More
+              </Button>
+            )}
           </View>
           
           <View style={styles.footer} />
@@ -833,5 +863,9 @@ const styles = StyleSheet.create({
   categoryName: {
     textAlign: 'center',
     fontFamily: 'Nunito-Medium',
+  },
+  loadMoreButton: {
+    marginTop: 8,
+    marginBottom: 16,
   },
 } as const);

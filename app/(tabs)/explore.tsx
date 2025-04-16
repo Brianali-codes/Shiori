@@ -12,6 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { HeartIcon } from '@/components/ui/CustomIcons';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import * as Haptics from 'expo-haptics';
+import { IconSymbol } from '@/components/ui/CustomIcons';
+import { FontSizes } from '@/constants/FontSizes';
 
 export default function ExploreScreen() {
   const [wallpapers, setWallpapers] = useState<WallpaperPreview[]>([]);
@@ -22,6 +27,9 @@ export default function ExploreScreen() {
   const [selectedOrder, setSelectedOrder] = useState('desc');
   const [showNsfwContent, setShowNsfwContent] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const theme = useTheme();
 
   // Load NSFW setting and favorites on component mount
@@ -90,8 +98,13 @@ export default function ExploreScreen() {
     }
   };
 
-  const loadWallpapers = async () => {
+  const loadWallpapers = async (isRefreshing = false) => {
     try {
+      if (isRefreshing) {
+        setPage(1);
+        setHasMore(true);
+      }
+      
       setLoading(true);
       
       // Check if trying to access NSFW content without API key
@@ -107,29 +120,85 @@ export default function ExploreScreen() {
         q: searchQuery,
         sorting: selectedSort as any,
         order: selectedOrder as any,
-        // Set purity based on NSFW setting
-        purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100', // If NSFW allowed and has API key, enable all; otherwise only SFW
+        page: isRefreshing ? 1 : page,
+        purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100',
       });
-      setWallpapers(response.data);
+
+      if (isRefreshing) {
+        setWallpapers(response.data);
+      } else {
+        setWallpapers(prev => [...prev, ...response.data]);
+      }
+
+      if (response.data.length === 0) {
+        setHasMore(false);
+      }
     } catch (error) {
       console.error('Error loading wallpapers:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadWallpapers();
-    setRefreshing(false);
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setLoadingMore(true);
+      setPage(prev => prev + 1);
+    }
   };
 
   useEffect(() => {
-    // Set the API key
-    wallhavenAPI.setApiKey('S9eGuYOS7MOFjXfV91Up30hozbk5kpQR');
-    
     loadWallpapers();
-  }, [searchQuery, selectedSort, selectedOrder]);
+  }, [page]);
+
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    loadWallpapers(true);
+  }, [searchQuery, selectedSort, selectedOrder, showNsfwContent]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadWallpapers(true);
+    setRefreshing(false);
+  };
+
+  const downloadWallpaper = async (wallpaper: WallpaperPreview) => {
+    try {
+      // Request permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Please grant permission to save images to your device.');
+        return;
+      }
+
+      // Show loading alert
+      Alert.alert('Downloading', 'Please wait while we download your wallpaper...');
+
+      // Download the image
+      const fileUri = `${FileSystem.documentDirectory}${wallpaper.id}.jpg`;
+      const { uri } = await FileSystem.downloadAsync(
+        wallpaper.path,
+        fileUri
+      );
+
+      // Save to media library
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+
+      // Clean up
+      await FileSystem.deleteAsync(fileUri);
+
+      // Show success message
+      Alert.alert('Success', 'Wallpaper downloaded successfully!');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error downloading wallpaper:', error);
+      Alert.alert('Error', 'Failed to download wallpaper. Please try again.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
 
   const renderWallpaper = ({ item }: { item: WallpaperPreview }) => {
     const isFavorite = favorites.includes(item.id);
@@ -139,27 +208,55 @@ export default function ExploreScreen() {
         <View style={styles.wallpaperContainer}>
           <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
           
-          {/* Glassmorphic favorite button */}
-          <TouchableOpacity 
-            style={styles.favoriteButton}
-            onPress={() => toggleFavorite(item)}
-          >
-            <BlurView intensity={25} tint="dark" style={styles.blurView}>
-              <HeartIcon
-                size={22}
-                color="#FFFFFF"
-                isFilled={isFavorite}
-                style={styles.heartIcon}
-              />
-            </BlurView>
-          </TouchableOpacity>
+          {/* Glassmorphic buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => toggleFavorite(item)}
+            >
+              <BlurView intensity={25} tint="dark" style={styles.blurView}>
+                <HeartIcon
+                  size={22}
+                  color="#FFFFFF"
+                  isFilled={isFavorite}
+                  style={styles.heartIcon}
+                />
+              </BlurView>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => downloadWallpaper(item)}
+            >
+              <BlurView intensity={25} tint="dark" style={styles.blurView}>
+                <IconButton
+                  icon="download"
+                  size={22}
+                  iconColor="#FFFFFF"
+                  style={styles.downloadIcon}
+                />
+              </BlurView>
+            </TouchableOpacity>
+          </View>
           
           {/* Image info overlay */}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
             style={styles.infoGradient}
           >
-            <Text style={styles.resolutionText}>{item.resolution}</Text>
+            <View style={styles.wallpaperInfo}>
+              <Text style={styles.resolutionText}>{item.resolution}</Text>
+              <View style={styles.wallpaperMeta}>
+                <View style={styles.metaItem}>
+                  <IconSymbol name="rectangle.stack.fill" size={14} color="white" />
+                  <Text style={styles.wallpaperText}>{item.resolution}</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <IconSymbol name="heart.fill" size={14} color="white" />
+                  <Text style={styles.wallpaperText}>{item.favorites}</Text>
+                </View>
+              </View>
+            </View>
           </LinearGradient>
         </View>
       </Card>
@@ -227,6 +324,15 @@ export default function ExploreScreen() {
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={() => (
+                loadingMore ? (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  </View>
+                ) : null
+              )}
               showsVerticalScrollIndicator={false}
               columnWrapperStyle={styles.columnWrapper}
             />
@@ -295,36 +401,67 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 0,
   },
-  favoriteButton: {
+  buttonContainer: {
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 2,
+    flexDirection: 'row',
+    gap: 8,
   },
-  blurView: {
-    borderRadius: 20,
-    overflow: 'hidden',
+  actionButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  blurView: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
   heartIcon: {
-    marginTop: 2, // Visual alignment
+    margin: 0,
+  },
+  downloadIcon: {
+    margin: 0,
   },
   infoGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 50,
+    height: 80,
     justifyContent: 'flex-end',
-    paddingHorizontal: 12,
-    paddingBottom: 8,
+    padding: 12,
+  },
+  wallpaperInfo: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
   resolutionText: {
     color: 'white',
-    fontSize: 12,
-    fontFamily: 'Nunito-Medium',
+    fontSize: FontSizes.caption,
+    fontFamily: 'Nunito-Bold',
+    opacity: 0.9,
+    marginBottom: 4,
+  },
+  wallpaperMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wallpaperText: {
+    color: 'white',
+    marginLeft: 4,
+    fontSize: FontSizes.caption,
+    fontFamily: 'Nunito-Regular',
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
 });
