@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontSizes } from '@/constants/FontSizes';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -61,11 +62,42 @@ const featuredCollections = [
 ];
 
 const popularCategories = [
-  { name: 'Nature', query: 'nature landscape forest mountain' },
-  { name: 'Art', query: 'art painting illustration digital art' },
-  { name: 'Anime', query: 'anime art illustration' },
-  { name: 'Abstract', query: 'abstract art pattern' },
-  { name: 'Minimal', query: 'minimal simple clean' },
+  {
+    id: 'nature',
+    name: 'Nature',
+    icon: '🌿',
+    searchQuery: 'nature landscape forest mountain',
+  },
+  {
+    id: 'anime',
+    name: 'Anime',
+    icon: '🎌',
+    searchQuery: 'anime art illustration',
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    icon: '⚪',
+    searchQuery: 'minimal simple clean',
+  },
+  {
+    id: 'abstract',
+    name: 'Abstract',
+    icon: '🎨',
+    searchQuery: 'abstract art colorful',
+  },
+  {
+    id: 'space',
+    name: 'Space',
+    icon: '🌌',
+    searchQuery: 'space galaxy stars',
+  },
+  {
+    id: 'architecture',
+    name: 'Architecture',
+    icon: '🏛️',
+    searchQuery: 'architecture building city',
+  },
 ];
 
 export default function HomeScreen() {
@@ -157,12 +189,22 @@ export default function HomeScreen() {
         const randomResponse = await wallhavenAPI.getRandomWallpapers();
         setFeaturedWallpapers(randomResponse.data.slice(0, 5));
         
-        // Fetch latest wallpapers
-        const latestResponse = await wallhavenAPI.getLatest();
+        // Fetch latest wallpapers with proper parameters
+        const latestResponse = await wallhavenAPI.search({ 
+          sorting: 'date_added',
+          order: 'desc',
+          page: 1,
+          purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
+        });
         setLatestWallpapers(latestResponse.data.slice(0, 6));
         
-        // Fetch top wallpapers
-        const topResponse = await wallhavenAPI.getToplist();
+        // Fetch top wallpapers with proper parameters
+        const topResponse = await wallhavenAPI.search({ 
+          sorting: 'toplist',
+          order: 'desc',
+          page: 1,
+          purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
+        });
         setTopWallpapers(topResponse.data.slice(0, 6));
 
         // Fetch category preview images
@@ -170,7 +212,8 @@ export default function HomeScreen() {
         for (const category of featuredCollections) {
           const response = await wallhavenAPI.search({ 
             q: category.query, 
-            page: 1
+            page: 1,
+            purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
           });
           if (response.data.length > 0) {
             categoryPreviews[category.id] = response.data[0];
@@ -180,7 +223,8 @@ export default function HomeScreen() {
 
         // Fetch more wallpapers for the bottom section
         const moreResponse = await wallhavenAPI.search({ 
-          page: 1
+          page: 1,
+          purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
         });
         setMoreWallpapers(moreResponse.data);
       } catch (error) {
@@ -191,7 +235,7 @@ export default function HomeScreen() {
     };
     
     fetchData();
-  }, []);
+  }, [selectedPurity]);
 
   const navigateToWallpaper = (id: string) => {
     router.push(`/wallpaper/${id}`);
@@ -447,18 +491,30 @@ export default function HomeScreen() {
             snapToAlignment="center"
           />
           
-          <Text variant="titleMedium" style={styles.categoriesTitle}>Popular Categories</Text>
-          
-          <View style={styles.collectionsGrid}>
-            {popularCategories.map((item) => (
-              <TouchableOpacity 
-                key={item.name}
-                style={styles.collectionItem}
-                onPress={() => navigateToCategory(item.query)}
-              >
-                <Text style={styles.collectionTitle}>{item.name}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.section}>
+            <View style={styles.header}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>Popular Categories</Text>
+            </View>
+            <View style={styles.categoriesGrid}>
+              {popularCategories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={styles.categoryCard}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({
+                      pathname: '/(tabs)/explore',
+                      params: { query: category.searchQuery }
+                    });
+                  }}
+                >
+                  <View style={styles.categoryIconContainer}>
+                    <Text style={styles.categoryIcon}>{category.icon}</Text>
+                  </View>
+                  <Text variant="labelMedium" style={styles.categoryName}>{category.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
           
           <View style={styles.section}>
@@ -628,11 +684,12 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.bodySmall,
   },
   section: {
-    marginBottom: 24,
+    paddingHorizontal: 0,
+    paddingVertical: 8,
   },
   wallpapersList: {
     paddingLeft: 16,
-    paddingRight: 8,
+    paddingRight: 16,
     paddingBottom: 16,
   },
   wallpaperItem: {
@@ -731,7 +788,7 @@ const styles = StyleSheet.create({
   moreWallpapersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     marginBottom: 24,
   },
   moreWallpaperItem: {
@@ -743,5 +800,38 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 12,
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+    paddingHorizontal: 16,
+  },
+  categoryCard: {
+    width: '30%',
+    aspectRatio: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 24,
+  },
+  categoryName: {
+    textAlign: 'center',
+    fontFamily: 'Nunito-Medium',
   },
 } as const);

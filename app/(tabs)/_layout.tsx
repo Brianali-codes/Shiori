@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, View, StyleSheet, Text } from 'react-native';
-import { Home, LocationDiscover, Heart, InfoCircle, Setting } from 'iconsax-react-nativejs';
+import { Home, SearchNormal, Heart, Setting, LocationDiscover, MessageQuestion } from 'iconsax-react-nativejs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { HapticTab } from '@/components/HapticTab';
@@ -61,6 +61,7 @@ function TabBar() {
             borderTopRightRadius: 0,
             overflow: 'hidden',
             backgroundColor: getTabBarBackground(),
+            paddingBottom: 5,
           },
         }),
       }}
@@ -71,7 +72,7 @@ function TabBar() {
           title: 'Home',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Iconsax name="Home" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <Home size={24} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Home</Text>}
             </View>
           ),
@@ -79,13 +80,13 @@ function TabBar() {
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="explore"
         options={{
-          title: 'Search',
+          title: 'Explore',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Iconsax name="SearchNormal" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
-              {focused && <Text style={[styles.tabLabel, { color }]}>Search</Text>}
+              <LocationDiscover size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Explore</Text>}
             </View>
           ),
           headerShown: false,
@@ -97,8 +98,21 @@ function TabBar() {
           title: 'Favorites',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Iconsax name="Heart" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <Heart size={24} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Favorites</Text>}
+            </View>
+          ),
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="bug-report"
+        options={{
+          title: 'Report Bug',
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={styles.tabItem}>
+              <MessageQuestion size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Report</Text>}
             </View>
           ),
           headerShown: false,
@@ -110,7 +124,7 @@ function TabBar() {
           title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Iconsax name="Setting" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <Setting size={24} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Settings</Text>}
             </View>
           ),
@@ -131,8 +145,8 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: Platform.OS === 'ios' ? 80 : 70,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 0,
+    height: Platform.OS === 'ios' ? 70 : 60,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 5,
     backgroundColor: '#121212',
     borderTopWidth: 0,
     elevation: 0,
@@ -142,10 +156,14 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 4,
+    minWidth: 60,
   },
   tabLabel: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 10,
+    marginTop: 2,
     fontFamily: 'Nunito-Medium',
+    textAlign: 'center',
+    width: '100%',
   },
 });

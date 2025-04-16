@@ -1,4 +1,4 @@
-import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState, useRef } from 'react';
 import { Image, StyleSheet, View, Dimensions, ActivityIndicator, TouchableOpacity, Share, Animated, Platform, Alert, Linking, ToastAndroid } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -14,7 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Iconsax } from '@/components/ui/Iconsax';
+import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft } from 'iconsax-react-nativejs';
 
 const { width, height } = Dimensions.get('window');
 
@@ -63,7 +63,6 @@ export default function WallpaperScreen() {
   const toggleFavorite = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsFavorite(!isFavorite);
-    // Here you would implement the actual favorite logic with Redux/AsyncStorage
   };
 
   const shareWallpaper = async () => {
@@ -215,7 +214,7 @@ export default function WallpaperScreen() {
         }
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Download error:', error);
       setDownloadError(`Failed to download the image: ${error.message}`);
       setShowFallbackDialog(true);
@@ -327,28 +326,14 @@ export default function WallpaperScreen() {
     <ThemedView style={styles.container}>
       <StatusBar style={isDark ? "light" : "dark"} />
       
-      {/* Animated Header */}
-      <AnimatedSurface 
-        style={[
-          styles.animatedHeader, 
-          { 
-            opacity: headerOpacity,
-            backgroundColor: paperTheme.colors.elevation.level2 
-          }
-        ]} 
-        elevation={4}
-      >
-        <View />
-      </AnimatedSurface>
-      
       {/* Back Button */}
       <View style={{ position: 'absolute', top: 40, left: 12, zIndex: 10 }}>
         <IconButton
           icon={() => (
-            <IconSymbol 
-              name="chevron.left" 
-              size={28} 
+            <ArrowLeft 
+              size={24} 
               color="white" 
+              variant="Bold"
               style={styles.backIcon} 
             />
           )}
@@ -362,10 +347,10 @@ export default function WallpaperScreen() {
       <View style={{ position: 'absolute', top: 40, right: 12, zIndex: 10, flexDirection: 'row' }}>
         <IconButton
           icon={() => (
-            <IconSymbol 
-              name={isFavorite ? "heart.fill" : "heart"} 
+            <Heart 
               size={24} 
               color="white" 
+              variant={isFavorite ? "Bold" : "Broken"}
               style={styles.headerIcon} 
             />
           )}
@@ -375,11 +360,10 @@ export default function WallpaperScreen() {
         />
         <IconButton
           icon={() => (
-            <IconSymbol 
-              name="square.and.arrow.up" 
+            <ShareIcon 
               size={24} 
               color="white" 
-              style={styles.headerIcon} 
+              variant="Bold"
             />
           )}
           size={40}
@@ -600,7 +584,7 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('original')}
                     style={styles.downloadButton}
-                    icon={() => <Iconsax name="DocumentDownload" size={20} color={paperTheme.colors.primary} />}
+                    icon={() => <DocumentDownload size={20} color={paperTheme.colors.primary} />}
                   >
                     Original ({wallpaper.resolution})
                   </Button>
@@ -608,7 +592,7 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('large')}
                     style={styles.downloadButton}
-                    icon={() => <Iconsax name="DocumentDownload" size={20} color={paperTheme.colors.primary} />}
+                    icon={() => <DocumentDownload size={20} color={paperTheme.colors.primary} />}
                   >
                     Large Thumbnail
                   </Button>
@@ -616,7 +600,7 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('small')}
                     style={styles.downloadButton}
-                    icon={() => <Iconsax name="DocumentDownload" size={20} color={paperTheme.colors.primary} />}
+                    icon={() => <DocumentDownload size={20} color={paperTheme.colors.primary} />}
                   >
                     Small Thumbnail
                   </Button>

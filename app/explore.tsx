@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/ThemedComponents';
 import { WallpaperCard } from '@/components/ui/WallpaperCard';
 import { wallhavenAPI, WallpaperPreview } from './services/wallhaven';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SearchNormal } from 'iconsax-react-nativejs';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -75,8 +76,9 @@ export default function ExploreScreen() {
 
   const renderWallpaper = ({ item }: { item: WallpaperPreview }) => (
     <WallpaperCard 
-      wallpaper={item}
-      onPress={() => router.push(`/wallpaper/${item.id}`)}
+      id={item.id}
+      thumbUrl={item.thumbs.large}
+      resolution={item.resolution}
     />
   );
 
