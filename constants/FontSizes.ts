@@ -1,30 +1,30 @@
 // Font sizes used throughout the app
 export const FontSizes = {
   // Heading sizes
-  h1: 24, // Was 28
-  h2: 20, // Was 24
-  h3: 18, // Was 20
-  h4: 16, // Was 18
+  h1: 22, // Was 24 (originally 28)
+  h2: 18, // Was 20 (originally 24)
+  h3: 16, // Was 18 (originally 20)
+  h4: 14, // Was 16 (originally 18)
   
   // Body text sizes
-  body: 14, // Was 16
-  bodySmall: 12, // Was 14
+  body: 13, // Was 14 (originally 16)
+  bodySmall: 11, // Was 12 (originally 14)
   
   // Special text sizes
-  button: 14, // Was 16
-  caption: 10, // Was 12
+  button: 13, // Was 14 (originally 16)
+  caption: 9, // Was 10 (originally 12)
   
   // Tab bar text size
-  tabLabel: 11, // Was 12
+  tabLabel: 10, // Was 11 (originally 12)
   
   // Other elements
-  cardTitle: 13, // Down from 16
-  listItem: 13, // Down from 16
-  listDescription: 11, // Down from 13
+  cardTitle: 12, // Was 13 (originally 16)
+  listItem: 12, // Was 13 (originally 16)
+  listDescription: 10, // Was 11 (originally 13)
   
   // Form elements
-  input: 12, // Down from 14
+  input: 11, // Was 12 (originally 14)
   
   // Chips and tags
-  chip: 11, // Down from 13
+  chip: 10, // Was 11 (originally 13)
 }; 

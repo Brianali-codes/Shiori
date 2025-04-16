@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Animated, Easing, Platform, Linking } from 'react-native';
+import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Animated, Easing, Platform, Linking, ToastAndroid } from 'react-native';
 import { List, Text, Divider, Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card, RadioButton } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
@@ -117,7 +117,8 @@ export default function SettingsScreen() {
     wallhavenAuthVisible: false,
     loading: false,
     username: null as string | null,
-    apiKey: ''
+    apiKey: '',
+    hasApiKey: false
   });
 
   // App settings states
@@ -147,6 +148,9 @@ export default function SettingsScreen() {
     fontSizeVisible: false
   });
 
+  const [manualKeyDialogVisible, setManualKeyDialogVisible] = useState(false);
+  const [inputApiKey, setInputApiKey] = useState('');
+
   const webViewRef = useRef<WebView>(null);
 
   // Helper functions to update state
@@ -173,14 +177,22 @@ export default function SettingsScreen() {
         // Load API key
         const savedKey = await AsyncStorage.getItem('wallhavenApiKey');
         if (savedKey) {
-          // Set the API key but don't update state to avoid showing in UI
+          // Set the API key to the API service and update status
           wallhavenAPI.setApiKey(savedKey);
+          updateAuthState({ hasApiKey: true });
         }
 
         // Load username
         const savedUsername = await AsyncStorage.getItem('wallhavenUsername');
         if (savedUsername) {
           updateAuthState({ username: savedUsername });
+        }
+
+        // Load NSFW setting - now check if API key exists before loading
+        const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
+        if (nsfwSetting === 'true' && savedKey) { 
+          // Only enable NSFW if API key exists
+          updateSettings({ showNsfwContent: true });
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -198,9 +210,14 @@ export default function SettingsScreen() {
       updateAuthState({
         username: null,
         apiKey: '',
-        loading: false
+        loading: false,
+        hasApiKey: false
       });
       wallhavenAPI.setApiKey('');
+      
+      // Also turn off NSFW content when signing out
+      updateSettings({ showNsfwContent: false });
+      await AsyncStorage.setItem('showNsfwContent', 'false');
       
       Alert.alert('Success', 'You have been signed out successfully.');
     } catch (error) {
@@ -235,14 +252,16 @@ export default function SettingsScreen() {
               username: settings.username,
               apiKey: newApiKey,
               wallhavenAuthVisible: false,
-              loading: false
+              loading: false,
+              hasApiKey: true
             });
           } else {
             // No username but key is valid
             updateAuthState({
               apiKey: newApiKey,
               wallhavenAuthVisible: false,
-              loading: false
+              loading: false,
+              hasApiKey: true
             });
           }
           
@@ -316,7 +335,7 @@ export default function SettingsScreen() {
 
   // Save NSFW setting when it changes with loading indicator
   const handleNsfwToggle = async (value: boolean) => {
-    if (value && !authState.apiKey) {
+    if (value && !authState.hasApiKey) {
       // If trying to enable NSFW without API key, show API key dialog
       Alert.alert(
         'API Key Required',
@@ -410,24 +429,28 @@ export default function SettingsScreen() {
   // Handle font size change
   const handleFontSizeChange = async (value: string) => {
     if (value === 'small' || value === 'medium' || value === 'large') {
-      updateSettings({ fontSize: value as 'small' | 'medium' | 'large' });
+      updateLoadingStates({ fontSize: true });
       
       try {
-        updateLoadingStates({ fontSize: true });
-        
-        // Save the font size preference
+        // Save the preference to storage first
         await AsyncStorage.setItem('fontSizeOption', value);
         
-        // Show loading indicator for a moment to improve UX
+        // Update the local state immediately
+        updateSettings({ fontSize: value as 'small' | 'medium' | 'large' });
+        
+        // Show a brief loading indicator for visual feedback
         setTimeout(() => {
           updateLoadingStates({ fontSize: false });
           
-          // Show dialog about app restart
-          Alert.alert(
-            'Font Size Changed',
-            'Please restart the app for the new font size to take full effect.',
-            [{ text: 'OK' }]
-          );
+          // Show success toast instead of restart dialog
+          if (Platform.OS === 'android') {
+            ToastAndroid.show('Font size updated', ToastAndroid.SHORT);
+          } else {
+            Alert.alert('Success', 'Font size has been updated');
+          }
+          
+          // Close dialog if this was called from the dialog buttons
+          updateDialogStates({ fontSizeVisible: false });
         }, 600);
         
       } catch (error) {
@@ -497,6 +520,68 @@ export default function SettingsScreen() {
         `;
         webViewRef.current.injectJavaScript(injectedJavaScript);
       }
+    }
+  };
+
+  const openWallhavenWebsite = () => {
+    Linking.openURL('https://wallhaven.cc/login');
+  };
+
+  const showManualKeyDialog = () => {
+    setManualKeyDialogVisible(true);
+    updateAuthState({ wallhavenAuthVisible: false });
+  };
+
+  const hideManualKeyDialog = () => {
+    setManualKeyDialogVisible(false);
+    setInputApiKey('');
+  };
+
+  const handleManualApiKeySave = async () => {
+    if (inputApiKey && inputApiKey.trim() !== '') {
+      try {
+        updateAuthState({ loading: true });
+        
+        // Set the API key to the API service
+        wallhavenAPI.setApiKey(inputApiKey);
+        
+        try {
+          const settings = await wallhavenAPI.getUserSettings();
+          await AsyncStorage.setItem('wallhavenApiKey', inputApiKey);
+          
+          // Save username if available in response
+          if (settings && settings.username) {
+            await AsyncStorage.setItem('wallhavenUsername', settings.username);
+            updateAuthState({
+              username: settings.username,
+              apiKey: '',
+              loading: false,
+              hasApiKey: true
+            });
+          } else {
+            // No username but key is valid
+            updateAuthState({
+              apiKey: '',
+              loading: false,
+              hasApiKey: true
+            });
+          }
+          
+          Alert.alert('Success', 'API key validated and saved successfully!');
+        } catch (error) {
+          console.error('API validation failed:', error);
+          updateAuthState({ loading: false });
+          Alert.alert('Invalid API Key', 'The API key could not be verified. Please check and try again.');
+        }
+      } catch (error) {
+        console.error('Failed to save API key:', error);
+        updateAuthState({ loading: false });
+      } finally {
+        setInputApiKey('');
+        setManualKeyDialogVisible(false);
+      }
+    } else {
+      Alert.alert('Error', 'Please enter a valid API key');
     }
   };
 
@@ -694,16 +779,21 @@ export default function SettingsScreen() {
               
               <List.Item
                 title="API Key"
-                description={authState.apiKey ? 'API key is set' : 'No API key set'}
+                description={authState.hasApiKey ? 'API key is set and active' : 'No API key set'}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
                   <MaterialIcons name="vpn-key" size={size} color={color} />
                 )} />}
                 onPress={() => updateAuthState({ wallhavenAuthVisible: true })}
+                right={() => authState.hasApiKey ? (
+                  <View style={{ justifyContent: 'center', marginRight: 12 }}>
+                    <MaterialIcons name="check-circle" size={24} color={paperTheme.colors.primary} />
+                  </View>
+                ) : null}
               />
               
               <List.Item
                 title="Show NSFW Content"
-                description="Enable to show NSFW and sketchy content"
+                description={authState.hasApiKey ? "Enable to show NSFW and sketchy content" : "API key required to view NSFW content"}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
                   <MaterialIcons name="visibility" size={size} color={color} />
                 )} />}
@@ -716,10 +806,11 @@ export default function SettingsScreen() {
                     <AnimatedSwitch 
                       value={settings.showNsfwContent}
                       onValueChange={handleNsfwToggle}
+                      disabled={!authState.hasApiKey}
                     />
                   )
                 )}
-                disabled={loadingStates.nsfw}
+                disabled={loadingStates.nsfw || !authState.hasApiKey}
               />
             </Card.Content>
           </Card>
@@ -778,40 +869,74 @@ export default function SettingsScreen() {
         </ScrollView>
         
         <Portal>
-          <Dialog visible={authState.wallhavenAuthVisible} onDismiss={() => updateAuthState({ wallhavenAuthVisible: false })} style={styles.webViewDialog}>
-            <Dialog.Title>Sign in to Wallhaven</Dialog.Title>
+          <Dialog visible={authState.wallhavenAuthVisible} onDismiss={() => updateAuthState({ wallhavenAuthVisible: false })}>
+            <Dialog.Title>Connect to Wallhaven</Dialog.Title>
             <Dialog.Content>
               {authState.loading ? (
-                <View style={{ height: 300, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
                   <ActivityIndicator size="large" color={paperTheme.colors.primary} />
                   <Text style={{ marginTop: 16 }}>Processing login...</Text>
                 </View>
               ) : (
-                <WebView
-                  ref={webViewRef}
-                  source={{ uri: 'https://wallhaven.cc/login' }}
-                  style={styles.webView}
-                  onNavigationStateChange={handleWebViewNavigationStateChange}
-                  onMessage={handleWebViewMessage}
-                  incognito={true}
-                  sharedCookiesEnabled={false}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  startInLoadingState={true}
-                  renderLoading={() => (
-                    <View style={{ height: 300, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                      <ActivityIndicator size="large" color={paperTheme.colors.primary} />
-                    </View>
-                  )}
-                  onError={(syntheticEvent) => {
-                    const { nativeEvent } = syntheticEvent;
-                    console.error('WebView error: ', nativeEvent);
-                  }}
-                />
+                <>
+                  <Text style={{ marginBottom: 20 }}>
+                    You have two options to connect with your Wallhaven account:
+                  </Text>
+                  
+                  <Button 
+                    mode="contained" 
+                    icon={({size, color}) => (
+                      <MaterialIcons name="open-in-new" size={18} color={color} />
+                    )}
+                    onPress={openWallhavenWebsite}
+                    style={{ marginBottom: 12 }}
+                  >
+                    Open Wallhaven Website
+                  </Button>
+                  
+                  <Button 
+                    mode="outlined"
+                    icon={({size, color}) => (
+                      <MaterialIcons name="vpn-key" size={18} color={color} />
+                    )}
+                    onPress={showManualKeyDialog}
+                  >
+                    Enter API Key Manually
+                  </Button>
+                  
+                  <Text style={{ marginTop: 20, opacity: 0.7, fontSize: 14 }}>
+                    1. Sign in on the Wallhaven website{'\n'}
+                    2. Go to your Settings → Account{'\n'}
+                    3. Copy your API Key{'\n'}
+                    4. Return here and enter it manually
+                  </Text>
+                </>
               )}
             </Dialog.Content>
             <Dialog.Actions>
-              <Button onPress={() => updateAuthState({ wallhavenAuthVisible: false })}>Cancel</Button>
+              <Button onPress={() => updateAuthState({ wallhavenAuthVisible: false })}>Close</Button>
+            </Dialog.Actions>
+          </Dialog>
+          
+          <Dialog visible={manualKeyDialogVisible} onDismiss={hideManualKeyDialog}>
+            <Dialog.Title>Enter API Key</Dialog.Title>
+            <Dialog.Content>
+              <Text style={{ marginBottom: 16 }}>
+                Please enter your Wallhaven API key. You can find this in your Wallhaven account settings at wallhaven.cc.
+              </Text>
+              <TextInput
+                label="API Key"
+                value={inputApiKey}
+                onChangeText={setInputApiKey}
+                mode="outlined"
+                autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect={false}
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={hideManualKeyDialog}>Cancel</Button>
+              <Button onPress={handleManualApiKeySave}>Save</Button>
             </Dialog.Actions>
           </Dialog>
           
@@ -851,15 +976,12 @@ export default function SettingsScreen() {
                 </View>
               </RadioButton.Group>
               <Text variant="bodySmall" style={styles.apiKeyHelp}>
-                Changes will take effect after restarting the app.
+                Font size changes will apply immediately throughout the app.
               </Text>
             </Dialog.Content>
             <Dialog.Actions>
               <Button onPress={() => updateDialogStates({ fontSizeVisible: false })}>Cancel</Button>
-              <Button onPress={() => {
-                handleFontSizeChange(settings.fontSize);
-                updateDialogStates({ fontSizeVisible: false });
-              }}>Apply</Button>
+              <Button onPress={() => handleFontSizeChange(settings.fontSize)}>Apply</Button>
             </Dialog.Actions>
           </Dialog>
           
