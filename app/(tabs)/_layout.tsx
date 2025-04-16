@@ -47,8 +47,8 @@ function TabBar() {
             borderTopWidth: 0,
             elevation: 0,
             height: 70,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
             overflow: 'hidden',
             backgroundColor: getTabBarBackground(),
             paddingBottom: Math.max(10, insets.bottom),
@@ -57,8 +57,8 @@ function TabBar() {
             height: 60,
             borderTopWidth: 0,
             elevation: 0,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
             overflow: 'hidden',
             backgroundColor: getTabBarBackground(),
           },
@@ -69,120 +69,52 @@ function TabBar() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <View style={styles.iconContainer}>
-                <Home
-                  size={20} 
-                  color={getTabIconColor(focused)}
-                  variant={focused ? "Bold" : "Broken"}
-                />
-              </View>
-              {focused && (
-                <View style={styles.labelContainer}>
-                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                    Home
-                  </Text>
-                </View>
-              )}
+              <Iconsax name="Home" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Home</Text>}
             </View>
           ),
+          headerShown: false,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="search"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ focused }) => (
+          title: 'Search',
+          tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <View style={styles.iconContainer}>
-                <LocationDiscover
-                  size={20} 
-                  color={getTabIconColor(focused)}
-                  variant={focused ? "Bold" : "Broken"}
-                />
-              </View>
-              {focused && (
-                <View style={styles.labelContainer}>
-                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                    Explore
-                  </Text>
-                </View>
-              )}
+              <Iconsax name="SearchNormal" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Search</Text>}
             </View>
           ),
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="favorites"
         options={{
           title: 'Favorites',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <View style={styles.iconContainer}>
-                <Heart
-                  size={20} 
-                  color={getTabIconColor(focused)}
-                  variant={focused ? "Bold" : "Broken"}
-                />
-              </View>
-              {focused && (
-                <View style={styles.labelContainer}>
-                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                    Favorites
-                  </Text>
-                </View>
-              )}
+              <Iconsax name="Heart" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Favorites</Text>}
             </View>
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="bug-report"
-        options={{
-          title: 'Report',
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.tabItem}>
-              <View style={styles.iconContainer}>
-                <InfoCircle
-                  size={20} 
-                  color={getTabIconColor(focused)}
-                  variant={focused ? "Bold" : "Broken"}
-                />
-              </View>
-              {focused && (
-                <View style={styles.labelContainer}>
-                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                    Report
-                  </Text>
-                </View>
-              )}
-            </View>
-          ),
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <View style={styles.iconContainer}>
-                <Setting
-                  size={20} 
-                  color={getTabIconColor(focused)}
-                  variant={focused ? "Bold" : "Broken"}
-                />
-              </View>
-              {focused && (
-                <View style={styles.labelContainer}>
-                  <Text style={[styles.tabLabel, { color: getTabIconColor(focused) }]}>
-                    Settings
-                  </Text>
-                </View>
-              )}
+              <Iconsax name="Setting" size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Settings</Text>}
             </View>
           ),
+          headerShown: false,
         }}
       />
     </Tabs>
@@ -198,33 +130,22 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabBar: {
+    height: Platform.OS === 'ios' ? 80 : 70,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 0,
+    backgroundColor: '#121212',
+    borderTopWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
   tabItem: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
     height: '100%',
-    width: 60,
-  },
-  iconContainer: {
-    width: 38,
-    height: 24,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
-  },
-  labelContainer: {
-    width: '100%',
-    overflow: 'visible',
+    alignItems: 'center',
   },
   tabLabel: {
-    fontSize: FontSizes.tabLabel,
+    fontSize: 12,
+    marginTop: 4,
     fontFamily: 'Nunito-Medium',
-    letterSpacing: 0.2,
-    textAlign: 'center',
-    marginTop: 1,
-    width: '100%',
-    lineHeight: 12,
-    height: 12,
   },
 });

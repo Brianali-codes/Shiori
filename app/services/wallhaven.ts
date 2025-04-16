@@ -105,6 +105,7 @@ class WallhavenAPI {
   private baseURL = 'https://wallhaven.cc/api/v1';
   private apiKey?: string;
   private highQualityMode: boolean = false;
+  private nsfwEnabled: boolean = false;
   
   constructor(apiKey?: string) {
     this.apiKey = apiKey;
@@ -115,9 +116,14 @@ class WallhavenAPI {
     try {
       const highQualitySetting = await AsyncStorage.getItem('highQualityThumbs');
       this.highQualityMode = highQualitySetting === 'true';
+      
+      // Also load NSFW setting
+      const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
+      this.nsfwEnabled = nsfwSetting === 'true';
     } catch (error) {
-      console.error('Failed to load high quality setting:', error);
+      console.error('Failed to load API settings:', error);
       this.highQualityMode = false;
+      this.nsfwEnabled = false;
     }
   }
 
@@ -175,13 +181,59 @@ class WallhavenAPI {
     return data;
   }
 
+  updateNsfwFilter(enabled: boolean): void {
+    this.nsfwEnabled = enabled;
+    console.log('NSFW setting updated:', enabled);
+    
+    // Save the setting to AsyncStorage for persistence
+    try {
+      AsyncStorage.setItem('showNsfwContent', enabled ? 'true' : 'false');
+    } catch (error) {
+      console.error('Failed to save NSFW setting:', error);
+    }
+    
+    // Force any in-memory caches to be cleared
+    this._clearCaches();
+  }
+  
+  // Add method to clear any cached data when settings change
+  private _clearCaches(): void {
+    // If this API client has any cached data, clear it here
+    // This ensures the next search will use the new settings
+    console.log('Clearing API caches to apply new settings');
+    
+    // In a production app, we would clear any in-memory cache here
+    // For now, just log that it happened
+  }
+  
+  // More aggressive filtering - add this to filter results after they come back
+  private filterNsfwContent(results: WallpaperPreview[]): WallpaperPreview[] {
+    // If NSFW is disabled, filter out any NSFW or sketchy content that might have slipped through
+    if (!this.nsfwEnabled) {
+      return results.filter(wallpaper => wallpaper.purity === 'sfw');
+    }
+    return results;
+  }
+
   async search(params: SearchParams = {}): Promise<WallhavenSearchResponse> {
     try {
+      // Apply NSFW filter to purity parameter
+      let purity = params.purity || '100'; // Default SFW only
+      
+      // If NSFW is enabled and API key is set, include NSFW and sketchy content
+      if (this.nsfwEnabled && this.hasApiKey()) {
+        purity = '111'; // SFW + Sketchy + NSFW
+      } else if (this.hasApiKey()) {
+        purity = '110'; // SFW + Sketchy
+      } else {
+        purity = '100'; // SFW only
+      }
+      
       // Construct query parameters
       const queryParams = this.getParams({
         ...params,
         categories: params.categories || '111', // Default to all categories
-        purity: params.purity || '100',         // Default to SFW
+        purity: purity, // Use our determined purity setting
       });
       
       const response = await axios.get(`${this.baseURL}/search`, {
@@ -192,7 +244,10 @@ class WallhavenAPI {
       });
       
       // Process response data for high quality if needed
-      const processedData = this.processWallpaperData(response.data.data) as WallpaperPreview[];
+      let processedData = this.processWallpaperData(response.data.data) as WallpaperPreview[];
+      
+      // Apply additional NSFW filtering to make sure no NSFW or sketchy content slips through
+      processedData = this.filterNsfwContent(processedData);
       
       return {
         ...response.data,
@@ -225,7 +280,15 @@ class WallhavenAPI {
       });
       
       // Process for high quality if needed
-      return this.processWallpaperData(response.data.data) as WallpaperPreview;
+      let wallpaper = this.processWallpaperData(response.data.data) as WallpaperPreview;
+      
+      // If NSFW is disabled and this is an NSFW wallpaper, return null
+      if (!this.nsfwEnabled && wallpaper.purity === 'nsfw') {
+        console.log('Blocked NSFW wallpaper access:', id);
+        return null;
+      }
+      
+      return wallpaper;
     } catch (error) {
       console.error('Failed to get wallpaper details:', error);
       return null;
@@ -247,16 +310,43 @@ class WallhavenAPI {
     }
   }
 
+  // Helper method to determine proper purity setting
+  private getPurityParameter(): string {
+    // If NSFW is enabled and API key is set, include NSFW content
+    if (this.nsfwEnabled && this.hasApiKey()) {
+      return '111'; // SFW + Sketchy + NSFW
+    } else if (this.hasApiKey()) {
+      return '110'; // SFW + Sketchy
+    } else {
+      return '100'; // SFW only
+    }
+  }
+
   async getLatest(page = 1): Promise<WallhavenSearchResponse> {
-    return this.search({ sorting: 'date_added', page });
+    return this.search({
+      page,
+      sorting: 'date_added',
+      order: 'desc',
+      purity: this.getPurityParameter()
+    });
   }
 
   async getToplist(page = 1, range: SearchParams['topRange'] = '1M'): Promise<WallhavenSearchResponse> {
-    return this.search({ sorting: 'toplist', page, topRange: range });
+    return this.search({
+      page,
+      sorting: 'toplist',
+      topRange: range,
+      purity: this.getPurityParameter()
+    });
   }
 
   async getRandomWallpapers(page = 1, seed?: string): Promise<WallhavenSearchResponse> {
-    return this.search({ sorting: 'random', page, seed });
+    return this.search({
+      page,
+      sorting: 'random',
+      seed,
+      purity: this.getPurityParameter()
+    });
   }
 
   async getUserSettings(): Promise<UserSettings> {

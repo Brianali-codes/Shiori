@@ -21,43 +21,51 @@ const featuredCollections = [
     title: 'Nature', 
     icon: 'leaf.fill', 
     color: '#4CAF50', 
-    query: 'nature',
+    query: 'nature landscape forest mountain',
   },
   { 
     id: '2', 
     title: 'Abstract', 
     icon: 'scribble', 
     color: '#9C27B0', 
-    query: 'abstract',
+    query: 'abstract art pattern geometric',
   },
   { 
     id: '3', 
     title: 'Minimal', 
     icon: 'square.fill', 
     color: '#607D8B', 
-    query: 'minimal',
+    query: 'minimal simple clean',
   },
   { 
     id: '4', 
-    title: 'Landscapes', 
-    icon: 'mountain.2.fill', 
+    title: 'Art', 
+    icon: 'paintpalette.fill', 
     color: '#FF9800', 
-    query: 'landscape',
+    query: 'art painting illustration digital art',
   },
   { 
     id: '5', 
     title: 'Dark', 
     icon: 'moon.fill', 
     color: '#212121', 
-    query: 'dark',
+    query: 'dark night black',
   },
   { 
     id: '6', 
     title: 'Anime', 
     icon: 'sparkles.fill', 
     color: '#E91E63', 
-    query: 'anime',
+    query: 'anime art illustration',
   },
+];
+
+const popularCategories = [
+  { name: 'Nature', query: 'nature landscape forest mountain' },
+  { name: 'Art', query: 'art painting illustration digital art' },
+  { name: 'Anime', query: 'anime art illustration' },
+  { name: 'Abstract', query: 'abstract art pattern' },
+  { name: 'Minimal', query: 'minimal simple clean' },
 ];
 
 export default function HomeScreen() {
@@ -75,6 +83,19 @@ export default function HomeScreen() {
   const [selectedPurity, setSelectedPurity] = useState('sfw');
   const [showNsfwContent, setShowNsfwContent] = useState(false);
 
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      router.push({
+        pathname: '/explore',
+        params: { 
+          q: searchQuery,
+          category: selectedCategory,
+          purity: selectedPurity
+        }
+      });
+    }
+  };
+
   const categories = [
     { id: 'all', label: 'All' },
     { id: 'general', label: 'General' },
@@ -88,8 +109,8 @@ export default function HomeScreen() {
     { id: 'nsfw', label: 'NSFW' },
   ];
 
-  // Filter purity levels based on NSFW setting
-  const purityLevels = showNsfwContent ? allPurityLevels : [{ id: 'sfw', label: 'SFW' }];
+  // Filter purity levels based on NSFW setting and API key
+  const purityLevels = showNsfwContent && wallhavenAPI.hasApiKey() ? allPurityLevels : [{ id: 'sfw', label: 'SFW' }];
 
   // Add useEffect to check for changes in NSFW settings and reload data
   useEffect(() => {
@@ -104,7 +125,7 @@ export default function HomeScreen() {
           console.log('NSFW setting updated:', newSetting);
           
           // Force reload of purity levels
-          if (!newSetting && (selectedPurity === 'sketchy' || selectedPurity === 'nsfw')) {
+          if (!newSetting || !wallhavenAPI.hasApiKey()) {
             setSelectedPurity('sfw');
           }
           
@@ -260,11 +281,11 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
-      // Check if trying to access NSFW content without API key
+      // Check if trying to access NSFW or sketchy content without API key
       if ((selectedPurity === 'nsfw' || selectedPurity === 'sketchy') && !wallhavenAPI.hasApiKey()) {
         Alert.alert(
           'API Key Required', 
-          'You need to set a Wallhaven API key in Settings to access NSFW content.',
+          'You need to set a Wallhaven API key in Settings to access NSFW and sketchy content.',
           [
             { text: 'OK', onPress: () => setSelectedPurity('sfw') }
           ]
@@ -273,10 +294,18 @@ export default function HomeScreen() {
         return;
       }
       
+      // Determine purity parameter based on selected purity
+      let purityParam = '100'; // Default to SFW
+      if (selectedPurity === 'sketchy') {
+        purityParam = '010'; // Sketchy only
+      } else if (selectedPurity === 'nsfw') {
+        purityParam = '001'; // NSFW only
+      }
+      
       const response = await wallhavenAPI.search({
         q: searchQuery,
         categories: selectedCategory === 'all' ? '111' : selectedCategory === 'general' ? '100' : selectedCategory === 'anime' ? '010' : '001',
-        purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001',
+        purity: purityParam, // Use the specific purity parameter
       });
       
       setFeaturedWallpapers(response.data.slice(0, 5));
@@ -358,6 +387,13 @@ export default function HomeScreen() {
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchBar}
+          onSubmitEditing={handleSearch}
+          right={() => (
+            <IconButton
+              icon="magnify"
+              onPress={handleSearch}
+            />
+          )}
         />
 
         <View style={styles.filterContainer}>
@@ -414,17 +450,13 @@ export default function HomeScreen() {
           <Text variant="titleMedium" style={styles.categoriesTitle}>Popular Categories</Text>
           
           <View style={styles.collectionsGrid}>
-            {featuredCollections.map(item => (
+            {popularCategories.map((item) => (
               <TouchableOpacity 
-                key={item.id}
+                key={item.name}
                 style={styles.collectionItem}
                 onPress={() => navigateToCategory(item.query)}
               >
-                <Image 
-                  source={{ uri: categoryWallpapers[item.id]?.thumbs.large }} 
-                  style={styles.collectionImage}
-                />
-                <Text style={styles.collectionTitle}>{item.title}</Text>
+                <Text style={styles.collectionTitle}>{item.name}</Text>
               </TouchableOpacity>
             ))}
           </View>

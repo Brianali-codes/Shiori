@@ -26,13 +26,14 @@ export const getFontScale = (): number => {
 
 /**
  * Initializes the font size service by loading the saved preference
+ * Note: This is still needed for backward compatibility and initial loading
  */
 export const initFontSize = async (): Promise<void> => {
   try {
     const savedSize = await AsyncStorage.getItem('fontSizeOption');
     if (savedSize && Object.keys(FONT_SCALE).includes(savedSize)) {
       currentFontSize = savedSize;
-      applyFontScale();
+      // We don't call applyFontScale here as the context will handle this
     }
   } catch (error) {
     console.error('Failed to load font size setting:', error);
@@ -40,7 +41,9 @@ export const initFontSize = async (): Promise<void> => {
 };
 
 /**
- * Sets a new font size option and applies the scale
+ * Sets a new font size option
+ * This is now handled by the FontSizeContext
+ * Kept for backward compatibility with any code that might call it directly
  */
 export const setFontSize = async (sizeOption: 'small' | 'medium' | 'large'): Promise<void> => {
   if (sizeOption === currentFontSize) return;
@@ -48,7 +51,7 @@ export const setFontSize = async (sizeOption: 'small' | 'medium' | 'large'): Pro
   try {
     currentFontSize = sizeOption;
     await AsyncStorage.setItem('fontSizeOption', sizeOption);
-    applyFontScale();
+    // We don't call applyFontScale as the context will handle updating the UI
   } catch (error) {
     console.error('Failed to save font size setting:', error);
   }
@@ -56,6 +59,8 @@ export const setFontSize = async (sizeOption: 'small' | 'medium' | 'large'): Pro
 
 /**
  * Applies the current font scale to all font sizes
+ * This is now primarily handled by the FontSizeContext
+ * Kept for backward compatibility with any code that might call it directly
  */
 export const applyFontScale = (): void => {
   const scale = getFontScale();

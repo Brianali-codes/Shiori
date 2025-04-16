@@ -10,102 +10,107 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, useThemeContext } from '../contexts/ThemeContext';
+import { FontSizeProvider, useFontSizeContext } from '../contexts/FontSizeContext';
 import { Colors } from '../constants/Colors';
-import { FontSizes } from '../constants/FontSizes';
-import { fonts } from '../theme/fonts';
 import { initFontSize } from '../services/fontSizeService';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-// Adjust font sizes globally
-const baseFontConfig = {
-  fontFamily: 'Nunito-Regular',
-  fontWeight: 'normal' as 'normal',
-  letterSpacing: 0,
-};
-
-// Custom Paper themes with smaller font sizes
-const CustomLightTheme = {
-  ...MD3LightTheme,
-  fonts: {
-    ...MD3LightTheme.fonts,
-    displayLarge: { ...baseFontConfig, fontSize: FontSizes.h1 * 1.2 },
-    displayMedium: { ...baseFontConfig, fontSize: FontSizes.h1 * 1.1 },
-    displaySmall: { ...baseFontConfig, fontSize: FontSizes.h1 },
-    
-    headlineLarge: { ...baseFontConfig, fontSize: FontSizes.h1, fontFamily: 'Nunito-Bold' },
-    headlineMedium: { ...baseFontConfig, fontSize: FontSizes.h2, fontFamily: 'Nunito-Bold' },
-    headlineSmall: { ...baseFontConfig, fontSize: FontSizes.h3, fontFamily: 'Nunito-Bold' },
-    
-    titleLarge: { ...baseFontConfig, fontSize: FontSizes.h3, fontFamily: 'Nunito-SemiBold' },
-    titleMedium: { ...baseFontConfig, fontSize: FontSizes.h4, fontFamily: 'Nunito-SemiBold' },
-    titleSmall: { ...baseFontConfig, fontSize: FontSizes.bodySmall, fontFamily: 'Nunito-SemiBold' },
-    
-    bodyLarge: { ...baseFontConfig, fontSize: FontSizes.body },
-    bodyMedium: { ...baseFontConfig, fontSize: FontSizes.bodySmall },
-    bodySmall: { ...baseFontConfig, fontSize: FontSizes.caption },
-    
-    labelLarge: { ...baseFontConfig, fontSize: FontSizes.body, fontFamily: 'Nunito-Medium' },
-    labelMedium: { ...baseFontConfig, fontSize: FontSizes.bodySmall, fontFamily: 'Nunito-Medium' },
-    labelSmall: { ...baseFontConfig, fontSize: FontSizes.caption, fontFamily: 'Nunito-Medium' },
-  },
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: Colors.light.tint,
-    primaryContainer: '#E3F5FF',
-    secondary: '#0a7ea4',
-    background: Colors.light.background,
-    surface: Colors.light.background,
-    surfaceVariant: '#F1F3F5',
-    text: Colors.light.text,
-  },
-};
-
-// Apply the same font configuration to dark theme
-const CustomDarkTheme = {
-  ...MD3DarkTheme,
-  fonts: CustomLightTheme.fonts, // Reuse the same font config
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: Colors.dark.tint,
-    primaryContainer: '#003D51',
-    secondary: '#0a7ea4',
-    background: Colors.dark.background,
-    surface: Colors.dark.background,
-    surfaceVariant: '#1E1F20',
-    text: Colors.dark.text,
-  },
-};
-
-// Apply the same font configuration to amoled theme
-const CustomAmoledTheme = {
-  ...MD3DarkTheme,
-  fonts: CustomLightTheme.fonts, // Reuse the same font config
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: Colors.amoled.tint,
-    primaryContainer: '#002A38',
-    secondary: '#0a7ea4',
-    background: Colors.amoled.background,
-    surface: Colors.amoled.background,
-    surfaceVariant: '#101010',
-    text: Colors.amoled.text,
-    elevation: {
-      ...MD3DarkTheme.colors.elevation,
-      level0: Colors.amoled.background,
-      level1: '#0A0A0A',
-      level2: '#111111',
-      level3: '#141414',
-      level4: '#181818',
-      level5: '#1C1C1C',
-    },
-  },
-};
-
 // Layout wrapper that provides the navigation theme
 function NavigationRoot() {
   const { theme, isDark, isAmoled } = useThemeContext();
+  const { fontSizes } = useFontSizeContext();
+  
+  // Adjust font sizes globally
+  const baseFontConfig = {
+    fontFamily: 'Nunito-Regular',
+    fontWeight: 'normal' as 'normal',
+    letterSpacing: 0,
+  };
+
+  // Custom Paper themes with dynamic font sizes
+  const CustomLightTheme = {
+    ...MD3LightTheme,
+    fonts: {
+      ...MD3LightTheme.fonts,
+      displayLarge: { ...baseFontConfig, fontSize: fontSizes.h1 * 1.2 },
+      displayMedium: { ...baseFontConfig, fontSize: fontSizes.h1 * 1.1 },
+      displaySmall: { ...baseFontConfig, fontSize: fontSizes.h1 },
+      
+      headlineLarge: { ...baseFontConfig, fontSize: fontSizes.h1, fontFamily: 'Nunito-Bold' },
+      headlineMedium: { ...baseFontConfig, fontSize: fontSizes.h2, fontFamily: 'Nunito-Bold' },
+      headlineSmall: { ...baseFontConfig, fontSize: fontSizes.h3, fontFamily: 'Nunito-Bold' },
+      
+      titleLarge: { ...baseFontConfig, fontSize: fontSizes.h3, fontFamily: 'Nunito-SemiBold' },
+      titleMedium: { ...baseFontConfig, fontSize: fontSizes.h4, fontFamily: 'Nunito-SemiBold' },
+      titleSmall: { ...baseFontConfig, fontSize: fontSizes.bodySmall, fontFamily: 'Nunito-SemiBold' },
+      
+      bodyLarge: { ...baseFontConfig, fontSize: fontSizes.body },
+      bodyMedium: { ...baseFontConfig, fontSize: fontSizes.bodySmall },
+      bodySmall: { ...baseFontConfig, fontSize: fontSizes.caption },
+      
+      labelLarge: { ...baseFontConfig, fontSize: fontSizes.body, fontFamily: 'Nunito-Medium' },
+      labelMedium: { ...baseFontConfig, fontSize: fontSizes.bodySmall, fontFamily: 'Nunito-Medium' },
+      labelSmall: { ...baseFontConfig, fontSize: fontSizes.caption, fontFamily: 'Nunito-Medium' },
+    },
+    colors: {
+      ...MD3LightTheme.colors,
+      primary: Colors.light.tint,
+      primaryContainer: '#E3F5FF',
+      secondary: '#0a7ea4',
+      background: Colors.light.background,
+      surface: Colors.light.background,
+      surfaceVariant: '#F1F3F5',
+      text: Colors.light.text,
+    },
+  };
+
+  const CustomDarkTheme = {
+    ...MD3DarkTheme,
+    fonts: {
+      ...MD3DarkTheme.fonts,
+      displayLarge: { ...baseFontConfig, fontSize: fontSizes.h1 * 1.2 },
+      displayMedium: { ...baseFontConfig, fontSize: fontSizes.h1 * 1.1 },
+      displaySmall: { ...baseFontConfig, fontSize: fontSizes.h1 },
+      
+      headlineLarge: { ...baseFontConfig, fontSize: fontSizes.h1, fontFamily: 'Nunito-Bold' },
+      headlineMedium: { ...baseFontConfig, fontSize: fontSizes.h2, fontFamily: 'Nunito-Bold' },
+      headlineSmall: { ...baseFontConfig, fontSize: fontSizes.h3, fontFamily: 'Nunito-Bold' },
+      
+      titleLarge: { ...baseFontConfig, fontSize: fontSizes.h3, fontFamily: 'Nunito-SemiBold' },
+      titleMedium: { ...baseFontConfig, fontSize: fontSizes.h4, fontFamily: 'Nunito-SemiBold' },
+      titleSmall: { ...baseFontConfig, fontSize: fontSizes.bodySmall, fontFamily: 'Nunito-SemiBold' },
+      
+      bodyLarge: { ...baseFontConfig, fontSize: fontSizes.body },
+      bodyMedium: { ...baseFontConfig, fontSize: fontSizes.bodySmall },
+      bodySmall: { ...baseFontConfig, fontSize: fontSizes.caption },
+      
+      labelLarge: { ...baseFontConfig, fontSize: fontSizes.body, fontFamily: 'Nunito-Medium' },
+      labelMedium: { ...baseFontConfig, fontSize: fontSizes.bodySmall, fontFamily: 'Nunito-Medium' },
+      labelSmall: { ...baseFontConfig, fontSize: fontSizes.caption, fontFamily: 'Nunito-Medium' },
+    },
+    colors: {
+      ...MD3DarkTheme.colors,
+      primary: Colors.dark.tint,
+      primaryContainer: '#193548',
+      secondary: '#81D4FA',
+      background: Colors.dark.background,
+      surface: Colors.dark.background,
+      surfaceVariant: '#2C2C2C',
+      text: Colors.dark.text,
+    },
+  };
+
+  const CustomAmoledTheme = {
+    ...CustomDarkTheme,
+    colors: {
+      ...CustomDarkTheme.colors,
+      background: '#000000',
+      surface: '#000000',
+      surfaceVariant: '#121212',
+    },
+  };
   
   const getPaperTheme = () => {
     if (isAmoled) return CustomAmoledTheme;
@@ -155,10 +160,10 @@ function NavigationRoot() {
       }
       
       if (fontsLoaded) {
-        SplashScreen.hideAsync();
+      SplashScreen.hideAsync();
       }
     }
-    
+
     prepare();
   }, [fontsLoaded]);
 
@@ -170,23 +175,25 @@ function NavigationRoot() {
     <PaperProvider theme={paperTheme}>
       <NavigationThemeProvider value={navigationTheme}>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
         <StatusBar style={isDark || isAmoled ? 'light' : 'dark'} />
       </NavigationThemeProvider>
     </PaperProvider>
   );
 }
 
-// Root layout with ThemeProvider
+// Root layout for the entire app
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <NavigationRoot />
-        </ThemeProvider>
+          <FontSizeProvider>
+            <NavigationRoot />
+          </FontSizeProvider>
+    </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

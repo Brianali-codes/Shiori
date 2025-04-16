@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Iconsax } from '@/components/ui/Iconsax';
 
 const { width, height } = Dimensions.get('window');
 
@@ -599,6 +600,7 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('original')}
                     style={styles.downloadButton}
+                    icon={() => <Iconsax name="DocumentDownload" size={20} color={paperTheme.colors.primary} />}
                   >
                     Original ({wallpaper.resolution})
                   </Button>
@@ -606,6 +608,7 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('large')}
                     style={styles.downloadButton}
+                    icon={() => <Iconsax name="DocumentDownload" size={20} color={paperTheme.colors.primary} />}
                   >
                     Large Thumbnail
                   </Button>
@@ -613,6 +616,7 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('small')}
                     style={styles.downloadButton}
+                    icon={() => <Iconsax name="DocumentDownload" size={20} color={paperTheme.colors.primary} />}
                   >
                     Small Thumbnail
                   </Button>
@@ -658,14 +662,18 @@ const styles = StyleSheet.create({
     height: 60,
     zIndex: 5,
   },
+  backButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   backIcon: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
-  },
-  backButton: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   headerButtons: {
     flexDirection: 'row',
@@ -677,7 +685,11 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   iconButton: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginHorizontal: 4,
   },
   loadingContainer: {
