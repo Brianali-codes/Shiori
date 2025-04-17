@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import { useFontSizeContext } from '@/contexts/FontSizeContext';
 import * as FileSystem from 'expo-file-system';
-
 // Custom Animated Switch component
 interface AnimatedSwitchProps {
   value: boolean;
@@ -123,11 +122,12 @@ export default function SettingsScreen() {
 
   // Authentication states
   const [authState, setAuthState] = useState({
-    wallhavenAuthVisible: false,
-    loading: false,
-    username: null as string | null,
+    username: 'Shiori',
     apiKey: '',
-    hasApiKey: false
+    loading: false,
+    hasApiKey: false,
+    wallhavenAuthVisible: false,
+    profileImage: null as string | null
   });
 
   // App settings states
@@ -173,10 +173,12 @@ export default function SettingsScreen() {
   const [aboutDialogVisible, setAboutDialogVisible] = useState(false);
   const [contactDialogVisible, setContactDialogVisible] = useState(false);
 
+  const [rateAppDialogVisible, setRateAppDialogVisible] = useState(false);
+
   // Helper functions to update state
-  const updateAuthState = (updates: Partial<typeof authState>) => {
+  const updateAuthState = useCallback((updates: Partial<typeof authState>) => {
     setAuthState(prev => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   const updateSettings = (updates: Partial<typeof settings>) => {
     setSettings(prev => ({ ...prev, ...updates }));
@@ -190,6 +192,21 @@ export default function SettingsScreen() {
     setDialogStates(prev => ({ ...prev, ...updates }));
   };
 
+  const generateRandomUsername = () => {
+    const adjectives = ['Mystic', 'Cosmic', 'Digital', 'Neon', 'Pixel', 'Cyber', 'Void', 'Nova', 'Stellar', 'Quantum'];
+    const nouns = ['Explorer', 'Voyager', 'Nomad', 'Pioneer', 'Wanderer', 'Seeker', 'Traveler', 'Adventurer', 'Discoverer', 'Explorer'];
+    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+    const randomNumber = Math.floor(Math.random() * 1000);
+    return `${randomAdjective}${randomNoun}${randomNumber}`;
+  };
+
+  const generateRandomAvatar = () => {
+    const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEEAD', 'D4A5A5', '9B59B6', '3498DB', 'E74C3C', '2ECC71'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(generateRandomUsername())}&background=${randomColor}&color=fff&size=128`;
+  };
+
   // Load saved settings
   useEffect(() => {
     const loadSettings = async () => {
@@ -200,25 +217,20 @@ export default function SettingsScreen() {
           // Set the API key to the API service and update status
           wallhavenAPI.setApiKey(savedKey);
           updateAuthState({ hasApiKey: true });
-        }
-
-        // Load username
-        const savedUsername = await AsyncStorage.getItem('wallhavenUsername');
-        if (savedUsername) {
-          updateAuthState({ username: savedUsername });
-        }
-
-        // Load NSFW setting - now check if API key exists before loading
-        const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
-        if (nsfwSetting === 'true' && savedKey) { 
-          // Only enable NSFW if API key exists
-          updateSettings({ showNsfwContent: true });
-        }
-        
-        // Load Download Location setting
-        const savedDownloadLocation = await AsyncStorage.getItem('downloadLocation');
-        if (savedDownloadLocation && (savedDownloadLocation === 'gallery' || savedDownloadLocation === 'private')) {
-          updateSettings({ downloadLocation: savedDownloadLocation as 'gallery' | 'private' });
+          
+          // Load username
+          const savedUsername = await AsyncStorage.getItem('wallhavenUsername');
+          if (savedUsername) {
+            updateAuthState({ username: savedUsername });
+          } else {
+            // Generate random profile for API key user
+            const randomUsername = generateRandomUsername();
+            const randomAvatar = generateRandomAvatar();
+            updateAuthState({
+              username: randomUsername,
+              profileImage: randomAvatar
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -233,22 +245,47 @@ export default function SettingsScreen() {
       updateAuthState({ loading: true });
       // Clear stored credentials
       await AsyncStorage.multiRemove(['wallhavenApiKey', 'wallhavenUsername']);
+      
       updateAuthState({
-        username: null,
+        username: 'Shiori',
         apiKey: '',
         loading: false,
-        hasApiKey: false
+        hasApiKey: false,
+        profileImage: null
       });
       wallhavenAPI.setApiKey('');
       
-      // Also turn off NSFW content when signing out
-      updateSettings({ showNsfwContent: false });
-      await AsyncStorage.setItem('showNsfwContent', 'false');
-      
-      Alert.alert('Success', 'You have been signed out successfully.');
+      // Show Material Design success dialog
+      Alert.alert(
+        'Success',
+        'You have been signed out successfully.',
+        [
+          {
+            text: 'OK',
+            style: 'default',
+            onPress: () => {}
+          }
+        ],
+        {
+          cancelable: true
+        }
+      );
     } catch (error) {
       console.error('Failed to sign out:', error);
-      Alert.alert('Error', 'Failed to sign out. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to sign out. Please try again.',
+        [
+          {
+            text: 'OK',
+            style: 'default',
+            onPress: () => {}
+          }
+        ],
+        {
+          cancelable: true
+        }
+      );
       updateAuthState({ loading: false });
     }
   };
@@ -258,49 +295,78 @@ export default function SettingsScreen() {
     
     if (newApiKey) {
       try {
-        // Update UI to show loading state
         updateAuthState({ loading: true });
-        
-        // Set the API key to the API service
         wallhavenAPI.setApiKey(newApiKey);
         
-        // Attempt to validate the key by making a request
         try {
           const settings = await wallhavenAPI.getUserSettings();
-          
-          // If we get here, the API key is valid
           await AsyncStorage.setItem('wallhavenApiKey', newApiKey);
           
-          // Save username if available
-          if (settings && settings.username) {
-            await AsyncStorage.setItem('wallhavenUsername', settings.username);
-            updateAuthState({
-              username: settings.username,
-              apiKey: newApiKey,
-              wallhavenAuthVisible: false,
-              loading: false,
-              hasApiKey: true
-            });
-          } else {
-            // No username but key is valid
-            updateAuthState({
-              apiKey: newApiKey,
-              wallhavenAuthVisible: false,
-              loading: false,
-              hasApiKey: true
-            });
-          }
+          // Generate random profile for the user
+          const randomUsername = generateRandomUsername();
+          const randomAvatar = generateRandomAvatar();
           
-          Alert.alert('Success', 'Successfully connected to Wallhaven!');
+          await AsyncStorage.setItem('wallhavenUsername', randomUsername);
+          
+          updateAuthState({
+            username: randomUsername,
+            apiKey: newApiKey,
+            wallhavenAuthVisible: false,
+            loading: false,
+            hasApiKey: true,
+            profileImage: randomAvatar
+          });
+          
+          // Show Material Design success dialog
+          Alert.alert(
+            'Success',
+            'Successfully connected to Wallhaven!',
+            [
+              {
+                text: 'OK',
+                style: 'default',
+                onPress: () => {}
+              }
+            ],
+            {
+              cancelable: true
+            }
+          );
         } catch (apiError) {
           console.error('API validation failed:', apiError);
           updateAuthState({ loading: false });
-          Alert.alert('Invalid API Key', 'The API key could not be verified. Please check and try again.');
+          Alert.alert(
+            'Invalid API Key',
+            'The API key could not be verified. Please check and try again.',
+            [
+              {
+                text: 'OK',
+                style: 'default',
+                onPress: () => {}
+              }
+            ],
+            {
+              cancelable: true
+            }
+          );
         }
       } catch (error) {
         console.error('Failed during API key processing:', error);
         updateAuthState({ loading: false });
-        Alert.alert('Error', 'An error occurred while processing your login. Please try again.');
+        Alert.alert(
+          'Error',
+          'An error occurred while processing your login. Please try again.',
+          [
+            {
+              text: 'OK',
+              style: 'default',
+              onPress: () => {}
+            }
+          ],
+          {
+            cancelable: true
+          }
+        );
       }
     }
   };
@@ -473,6 +539,10 @@ export default function SettingsScreen() {
     setContactDialogVisible(true);
   };
 
+  const showRateApp = () => {
+    setRateAppDialogVisible(true);
+  };
+
   // Handle font size change
   const handleFontSizeChange = async (value: string) => {
     if (value === 'small' || value === 'medium' || value === 'large') {
@@ -602,7 +672,7 @@ export default function SettingsScreen() {
           // Save username if available in response
           if (settings && settings.username) {
             await AsyncStorage.setItem('wallhavenUsername', settings.username);
-            updateAuthState({
+            updateAuthState({ 
               username: settings.username,
               apiKey: '',
               loading: false,
@@ -617,21 +687,75 @@ export default function SettingsScreen() {
             });
           }
           
-          Alert.alert('Success', 'API key validated and saved successfully!');
+          // Show Material Design success dialog
+          Alert.alert(
+            'Success',
+            'API key validated and saved successfully!',
+            [
+              {
+                text: 'OK',
+                style: 'default',
+                onPress: () => {}
+              }
+            ],
+            {
+              cancelable: true
+            }
+          );
         } catch (error) {
           console.error('API validation failed:', error);
           updateAuthState({ loading: false });
-          Alert.alert('Invalid API Key', 'The API key could not be verified. Please check and try again.');
+          Alert.alert(
+            'Invalid API Key',
+            'Please check your API key and try again.',
+            [
+              {
+                text: 'OK',
+                style: 'default',
+                onPress: () => {}
+              }
+            ],
+            {
+              cancelable: true
+            }
+          );
         }
       } catch (error) {
         console.error('Failed to save API key:', error);
         updateAuthState({ loading: false });
+        Alert.alert(
+          'Error',
+          'Failed to validate API key. Please try again.',
+          [
+            {
+              text: 'OK',
+              style: 'default',
+              onPress: () => {}
+            }
+          ],
+          {
+            cancelable: true
+          }
+        );
       } finally {
         setInputApiKey('');
         setManualKeyDialogVisible(false);
       }
     } else {
-      Alert.alert('Error', 'Please enter a valid API key');
+      Alert.alert(
+        'Error',
+        'Please enter a valid API key',
+        [
+          {
+            text: 'OK',
+            style: 'default',
+            onPress: () => {}
+          }
+        ],
+        {
+          cancelable: true
+        }
+      );
     }
   };
 
@@ -706,42 +830,55 @@ export default function SettingsScreen() {
         />
         
         <ScrollView>
-          <Card style={styles.userCard} mode="elevated">
+          <Card style={[styles.userCard, { backgroundColor: paperTheme.colors.surfaceVariant }]} mode="elevated">
             <Card.Content>
               <View style={styles.userInfo}>
-                <Avatar.Icon 
-                  icon={() => <Key variant="Broken" size={30} color={paperTheme.colors.primary} />} 
-                  size={60} 
-                  style={{ backgroundColor: paperTheme.colors.surfaceVariant }}
-                />
+                {authState.profileImage ? (
+                  <Avatar.Image 
+                    size={60}
+                    source={{ uri: authState.profileImage }}
+                    style={{ backgroundColor: paperTheme.colors.primaryContainer }}
+                  />
+                ) : (
+                  <Avatar.Image 
+                    size={60}
+                    source={require('@/assets/images/shiori.png')}
+                    style={{ backgroundColor: paperTheme.colors.primaryContainer }}
+                  />
+                )}
                 <View style={styles.userDetails}>
-                  <Text variant="titleMedium" style={{ fontSize: fontSizes.h4 }}>{authState.username || 'Guest User'}</Text>
-                  <Text variant="bodySmall" style={[styles.userSubtitle, { fontSize: fontSizes.caption }]}>
-                    {authState.username ? 'Wallhaven Account Connected' : 'Add your API key for more features'}
+                  <Text variant="titleMedium" style={{ fontSize: fontSizes.h4, fontFamily: 'Nunito-Bold', color: paperTheme.colors.onSurfaceVariant }}>
+                    {authState.username}
+                  </Text>
+                  <Text variant="bodySmall" style={[styles.motto, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
+                    Gotta Share that !
+                  </Text>
+                  <Text variant="bodySmall" style={[styles.userSubtitle, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
+                    {authState.hasApiKey ? 'API Key Connected' : 'Add your API key for more features'}
                   </Text>
                 </View>
               </View>
-              {authState.username ? (
+              {authState.hasApiKey ? (
                 <Button 
-                  mode="contained-tonal" 
-                  style={styles.signInButton}
+                  mode="contained" 
+                  style={[styles.signInButton, { backgroundColor: paperTheme.colors.primary }]}
                   onPress={handleSignOut}
                   loading={authState.loading}
                   disabled={authState.loading}
-                  labelStyle={{ fontSize: fontSizes.body }}
+                  labelStyle={{ fontSize: fontSizes.body, fontFamily: 'Nunito-SemiBold', color: paperTheme.colors.onPrimary }}
                 >
                   Sign Out
                 </Button>
               ) : (
                 <Button 
-                  mode="contained-tonal" 
-                  style={styles.signInButton}
+                  mode="contained" 
+                  style={[styles.signInButton, { backgroundColor: paperTheme.colors.primary }]}
                   onPress={handleWallhavenAuth}
                   loading={authState.loading}
-                  disabled={authState.loading}
-                  labelStyle={{ fontSize: fontSizes.body }}
+                  disabled={authState.loading || authState.hasApiKey}
+                  labelStyle={{ fontSize: fontSizes.body, fontFamily: 'Nunito-SemiBold', color: paperTheme.colors.onPrimary }}
                   icon={({size, color}) => (
-                    <Key variant="Broken" size={20} color={color} />
+                    <Key variant="Broken" size={20} color={paperTheme.colors.onPrimary} />
                   )}
                 >
                   Get Your API Key
@@ -752,29 +889,52 @@ export default function SettingsScreen() {
           
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>APPEARANCE</Text>
+              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>
+                APPEARANCE
+              </Text>
               
               <View style={styles.themeOptions}>
                 <TouchableOpacity 
-                  style={[styles.themeOption, theme === 'light' && styles.selectedTheme]}
+                  style={[
+                    styles.themeOption, 
+                    theme === 'light' && styles.selectedTheme,
+                    theme === 'light' && { borderColor: paperTheme.colors.primary },
+                    { backgroundColor: paperTheme.colors.surfaceVariant }
+                  ]}
                   onPress={() => handleThemeChange('light')}
                 >
                   <View style={[styles.themePreview, { backgroundColor: '#FFFFFF' }]} />
-                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption }]}>Light</ThemedText>
+                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
+                    Light
+                  </ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.themeOption, theme === 'dark' && styles.selectedTheme]}
+                  style={[
+                    styles.themeOption, 
+                    theme === 'dark' && styles.selectedTheme,
+                    theme === 'dark' && { borderColor: paperTheme.colors.primary },
+                    { backgroundColor: paperTheme.colors.surfaceVariant }
+                  ]}
                   onPress={() => handleThemeChange('dark')}
                 >
                   <View style={[styles.themePreview, { backgroundColor: '#151718' }]} />
-                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption }]}>Dark</ThemedText>
+                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
+                    Dark
+                  </ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.themeOption, theme === 'amoled' && styles.selectedTheme]}
+                  style={[
+                    styles.themeOption, 
+                    theme === 'amoled' && styles.selectedTheme,
+                    theme === 'amoled' && { borderColor: paperTheme.colors.primary },
+                    { backgroundColor: paperTheme.colors.surfaceVariant }
+                  ]}
                   onPress={() => handleThemeChange('amoled')}
                 >
                   <View style={[styles.themePreview, { backgroundColor: '#000000' }]} />
-                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption }]}>AMOLED</ThemedText>
+                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
+                    AMOLED
+                  </ThemedText>
                 </TouchableOpacity>
               </View>
               
@@ -1043,6 +1203,7 @@ export default function SettingsScreen() {
                 left={props => <List.Icon {...props} icon={({size, color}) => (
                   <Star variant="Broken" size={size} color={color} />
                 )} />}
+                onPress={showRateApp}
               />
               
               <List.Item
@@ -1053,6 +1214,7 @@ export default function SettingsScreen() {
                 left={props => <List.Icon {...props} icon={({size, color}) => (
                   <Message variant="Broken" size={size} color={color} />
                 )} />}
+                onPress={() => router.push('/(tabs)/bug-report')}
               />
             </Card.Content>
           </Card>
@@ -1110,26 +1272,42 @@ export default function SettingsScreen() {
             </Dialog.Actions>
           </Dialog>
           
-          <Dialog visible={manualKeyDialogVisible} onDismiss={hideManualKeyDialog}>
-            <Dialog.Title style={{ fontSize: fontSizes.h3 }}>Enter API Key</Dialog.Title>
+          <Dialog
+            visible={manualKeyDialogVisible}
+            onDismiss={() => setManualKeyDialogVisible(false)}
+            style={{ backgroundColor: paperTheme.colors.surface }}
+          >
+            <Dialog.Title style={{ color: paperTheme.colors.onSurface }}>
+              Enter API Key
+            </Dialog.Title>
             <Dialog.Content>
-              <Text style={{ marginBottom: 16, fontSize: fontSizes.body }}>
-                Please enter your Wallhaven API key. You can find this in your Wallhaven account settings at wallhaven.cc.
-              </Text>
               <TextInput
                 label="API Key"
                 value={inputApiKey}
                 onChangeText={setInputApiKey}
                 mode="outlined"
-                autoCapitalize="none"
-                autoComplete="off"
-                autoCorrect={false}
-                style={{ fontSize: fontSizes.body }}
+                secureTextEntry
+                style={{ backgroundColor: paperTheme.colors.surface }}
               />
+              <Text variant="bodySmall" style={{ marginTop: 8, color: paperTheme.colors.onSurfaceVariant }}>
+                You can find your API key in your Wallhaven account settings.
+              </Text>
             </Dialog.Content>
             <Dialog.Actions>
-              <Button onPress={hideManualKeyDialog} labelStyle={{ fontSize: fontSizes.body }}>Cancel</Button>
-              <Button onPress={handleManualApiKeySave} labelStyle={{ fontSize: fontSizes.body }}>Save</Button>
+              <Button 
+                onPress={() => setManualKeyDialogVisible(false)}
+                textColor={paperTheme.colors.onSurface}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onPress={handleManualApiKeySave}
+                loading={authState.loading}
+                disabled={authState.loading}
+                textColor={paperTheme.colors.primary}
+              >
+                Save
+              </Button>
             </Dialog.Actions>
           </Dialog>
           
@@ -1312,16 +1490,35 @@ export default function SettingsScreen() {
           <Dialog
             visible={aboutDialogVisible}
             onDismiss={() => setAboutDialogVisible(false)}
+            style={{ backgroundColor: paperTheme.colors.surface }}
           >
-            <Dialog.Title>About Shiori</Dialog.Title>
+            <Dialog.Title style={{ textAlign: 'center', color: paperTheme.colors.onSurface }}>
+              About Shiori
+            </Dialog.Title>
             <Dialog.Content>
-              <Text variant="bodyMedium">Version 1.0.0</Text>
-              <Text variant="bodyMedium" style={{ marginTop: 8 }}>
-                A beautiful wallpaper browser app using the Wallhaven API.
-              </Text>
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurface, marginBottom: 4 }}>
+                  Version 1.0.0
+                </Text>
+                <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 16 }}>
+                  A beautiful wallpaper browser app using the Wallhaven API.
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                  <Star variant="Broken" size={20} color={paperTheme.colors.onSurfaceVariant} />
+                  <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginLeft: 8 }}>
+                    Open Source on GitHub
+                  </Text>
+                </View>
+              </View>
             </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={() => setAboutDialogVisible(false)}>Close</Button>
+            <Dialog.Actions style={{ justifyContent: 'center', paddingBottom: 16 }}>
+              <Button 
+                mode="contained"
+                onPress={() => setAboutDialogVisible(false)}
+                style={{ minWidth: 100 }}
+              >
+                Close
+              </Button>
             </Dialog.Actions>
           </Dialog>
           
@@ -1329,18 +1526,65 @@ export default function SettingsScreen() {
             visible={contactDialogVisible}
             onDismiss={() => setContactDialogVisible(false)}
           >
-            <Dialog.Title>Contact Us</Dialog.Title>
+            <Dialog.Title style={{ textAlign: 'center' }}>Contact Us</Dialog.Title>
             <Dialog.Content>
-              <Text variant="bodyMedium">Have feedback or found an issue?</Text>
-              <Text variant="bodyMedium" style={{ marginTop: 8 }}>
+              <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
+                Have feedback or found an issue?
+              </Text>
+              <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 8 }}>
                 We'd love to hear from you! Please send your feedback or report issues to:
               </Text>
-              <Text variant="bodyMedium" style={{ marginTop: 8, color: paperTheme.colors.primary }}>
+              <Text 
+                variant="bodyMedium" 
+                style={{ 
+                  textAlign: 'center', 
+                  marginTop: 8, 
+                  color: paperTheme.colors.primary,
+                  fontFamily: 'Nunito-SemiBold'
+                }}
+              >
                 support@shiori.app
               </Text>
             </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={() => setContactDialogVisible(false)}>Close</Button>
+            <Dialog.Actions style={{ justifyContent: 'center' }}>
+              <Button 
+                onPress={() => setContactDialogVisible(false)}
+                style={{ minWidth: 100 }}
+              >
+                Close
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+          
+          <Dialog
+            visible={rateAppDialogVisible}
+            onDismiss={() => setRateAppDialogVisible(false)}
+          >
+            <Dialog.Title style={{ textAlign: 'center' }}>Rate Shiori</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium" style={{ textAlign: 'center' }}>
+                Enjoying Shiori?
+              </Text>
+              <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 8 }}>
+                Show your support by starring the project on GitHub!
+              </Text>
+            </Dialog.Content>
+            <Dialog.Actions style={{ justifyContent: 'center' }}>
+              <Button 
+                onPress={() => setRateAppDialogVisible(false)}
+                style={{ minWidth: 100 }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onPress={() => {
+                  Linking.openURL('https://github.com/brianali-codes/shiori');
+                  setRateAppDialogVisible(false);
+                }}
+                style={{ minWidth: 100 }}
+              >
+                Star on GitHub
+              </Button>
             </Dialog.Actions>
           </Dialog>
         </Portal>
@@ -1357,6 +1601,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
+    borderRadius: 16,
+    elevation: 2,
   },
   userInfo: {
     flexDirection: 'row',
@@ -1370,13 +1616,17 @@ const styles = StyleSheet.create({
   userSubtitle: {
     opacity: 0.6,
     marginTop: 2,
+    fontFamily: 'Nunito-Regular',
   },
   signInButton: {
-    borderRadius: 8,
+    borderRadius: 12,
+    marginTop: 8,
   },
   settingsSection: {
     marginHorizontal: 16,
     marginVertical: 8,
+    borderRadius: 16,
+    elevation: 2,
   },
   sectionTitle: {
     marginBottom: 8,
@@ -1394,7 +1644,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   selectedTheme: {
     backgroundColor: 'rgba(128, 128, 128, 0.15)',
@@ -1402,7 +1654,7 @@ const styles = StyleSheet.create({
   themePreview: {
     width: 64,
     height: 64,
-    borderRadius: 8,
+    borderRadius: 32,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(128, 128, 128, 0.2)',
@@ -1487,5 +1739,11 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     marginBottom: 16,
     opacity: 0.7,
-  }
+  },
+  motto: {
+    opacity: 0.6,
+    marginTop: 2,
+    fontFamily: 'Nunito-Regular',
+    fontStyle: 'italic',
+  },
 }); 

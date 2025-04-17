@@ -41,6 +41,7 @@
     "expo-system-ui": "~4.0.9",
     "expo-web-browser": "~14.0.2",
     "iconsax-react-nativejs": "^0.0.8",
+    "lottie-react-native": "^7.2.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.9",
