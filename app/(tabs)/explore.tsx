@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid } from 'react-native';
+import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity } from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
@@ -10,8 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, ArrowDown, Filter, Add } from 'iconsax-react-nativejs';
+import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2 } from 'iconsax-react-nativejs';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
@@ -154,6 +153,13 @@ export default function ExploreScreen() {
     }
   };
 
+  const loadPrevious = () => {
+    if (page > 1) {
+      setLoadingMore(true);
+      setPage(prev => prev - 1);
+    }
+  };
+
   useEffect(() => {
     loadWallpapers();
   }, [page]);
@@ -267,55 +273,60 @@ export default function ExploreScreen() {
     
     return (
       <Card style={styles.wallpaperCard} mode="elevated">
-        <View style={styles.wallpaperContainer}>
-          <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
-          
-          {/* Glassmorphic buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => toggleFavorite(item)}
-            >
-              <BlurView intensity={25} tint="dark" style={styles.blurView}>
-                <Heart
-                  size={22}
-                  color="#FFFFFF"
-                  variant={isFavorite ? "Bold" : "Broken"}
-                  style={styles.heartIcon}
-                />
-              </BlurView>
-            </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={() => router.push(`/wallpaper/${item.id}`)}
+          activeOpacity={0.9}
+        >
+          <View style={styles.wallpaperContainer}>
+            <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
+            
+            {/* Glassmorphic buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => toggleFavorite(item)}
+              >
+                <BlurView intensity={25} tint="dark" style={styles.blurView}>
+                  <Heart
+                    size={22}
+                    color="#FFFFFF"
+                    variant={isFavorite ? "Bold" : "Broken"}
+                    style={styles.heartIcon}
+                  />
+                </BlurView>
+              </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => downloadWallpaper(item)}
-            >
-              <BlurView intensity={25} tint="dark" style={styles.blurView}>
-                <ArrowDown2
-                  size={22}
-                  color="#FFFFFF"
-                  variant="Broken"
-                  style={styles.downloadIcon}
-                />
-              </BlurView>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Image info overlay */}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)']}
-            style={styles.infoGradient}
-          >
-            <View style={styles.wallpaperInfo}>
-              <View style={styles.resolutionContainer}>
-                <InfoCircle size={16} color="#FFFFFF" variant="Broken" />
-                <Text style={[styles.resolution, { fontFamily: 'Nunito-Medium', fontSize: FontSizes.bodySmall }]}>
-                  {item.resolution}
-                </Text>
-              </View>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => downloadWallpaper(item)}
+              >
+                <BlurView intensity={25} tint="dark" style={styles.blurView}>
+                  <ArrowDown2
+                    size={22}
+                    color="#FFFFFF"
+                    variant="Broken"
+                    style={styles.downloadIcon}
+                  />
+                </BlurView>
+              </TouchableOpacity>
             </View>
-          </LinearGradient>
-        </View>
+            
+            {/* Image info overlay */}
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              style={styles.infoGradient}
+            >
+              <View style={styles.wallpaperInfo}>
+                <View style={styles.resolutionContainer}>
+                  <InfoCircle size={16} color="#FFFFFF" variant="Broken" />
+                  <Text style={[styles.resolution, { fontFamily: 'Nunito-Medium', fontSize: FontSizes.bodySmall }]}>
+                    {item.resolution}
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        </TouchableOpacity>
       </Card>
     );
   };
@@ -356,7 +367,19 @@ export default function ExploreScreen() {
                   key={sort.id}
                   selected={selectedSort === sort.id}
                   onPress={() => setSelectedSort(sort.id)}
-                  style={styles.sortChip}
+                  style={[
+                    styles.sortChip,
+                    selectedSort === sort.id && { 
+                      backgroundColor: theme.colors.primaryContainer,
+                      borderColor: theme.colors.primary
+                    }
+                  ]}
+                  textStyle={[
+                    selectedSort === sort.id && { 
+                      color: theme.colors.primary,
+                      fontFamily: 'Nunito-Bold'
+                    }
+                  ]}
                 >
                   {sort.label}
                 </Chip>
@@ -375,7 +398,19 @@ export default function ExploreScreen() {
                   key={order.id}
                   selected={selectedOrder === order.id}
                   onPress={() => setSelectedOrder(order.id)}
-                  style={styles.orderChip}
+                  style={[
+                    styles.orderChip,
+                    selectedOrder === order.id && { 
+                      backgroundColor: theme.colors.primaryContainer,
+                      borderColor: theme.colors.primary
+                    }
+                  ]}
+                  textStyle={[
+                    selectedOrder === order.id && { 
+                      color: theme.colors.primary,
+                      fontFamily: 'Nunito-Bold'
+                    }
+                  ]}
                 >
                   {order.label}
                 </Chip>
@@ -400,22 +435,37 @@ export default function ExploreScreen() {
               ListFooterComponent={() => (
                 hasMore ? (
                   <View style={styles.loadMoreContainer}>
-                    <TouchableOpacity 
-                      style={[styles.loadMoreButton, { backgroundColor: theme.colors.surfaceVariant }]}
-                      onPress={loadMore}
-                      disabled={loadingMore}
-                    >
-                      {loadingMore ? (
-                        <ActivityIndicator size="small" color={theme.colors.primary} />
-                      ) : (
-                        <>
-                          <Add size={20} color={theme.colors.primary} variant="Broken" />
-                          <Text style={[styles.loadMoreText, { color: theme.colors.primary, fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
-                            Load More
+                    <View style={styles.paginationButtons}>
+                      {page > 1 && (
+                        <TouchableOpacity 
+                          style={[styles.paginationButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                          onPress={loadPrevious}
+                          disabled={loadingMore}
+                        >
+                          <ArrowLeft2 size={20} color={theme.colors.primary} variant="Broken" />
+                          <Text style={[styles.paginationText, { color: theme.colors.primary, fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                            Previous
                           </Text>
-                        </>
+                        </TouchableOpacity>
                       )}
-                    </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={[styles.paginationButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                        onPress={loadMore}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? (
+                          <ActivityIndicator size="small" color={theme.colors.primary} />
+                        ) : (
+                          <>
+                            <Text style={[styles.paginationText, { color: theme.colors.primary, fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                              Next
+                            </Text>
+                            <ArrowRight2 size={20} color={theme.colors.primary} variant="Broken" />
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : null
               )}
@@ -444,6 +494,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    marginTop: 8,
   },
   searchIcon: {
     position: 'absolute',
@@ -453,7 +504,8 @@ const styles = StyleSheet.create({
   searchBar: {
     flex: 1,
     elevation: 2,
-    borderRadius: 12,
+    borderRadius: 22,
+    height: 50,
   },
   filterContainer: {
     marginBottom: 16,
@@ -484,7 +536,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wallpaperList: {
-    paddingBottom: Platform.OS === 'ios' ? 20 : 80,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
   },
   columnWrapper: {
     justifyContent: 'space-between',
@@ -552,18 +604,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Medium',
   },
   loadMoreContainer: {
-    paddingVertical: 20,
+    paddingVertical: 12,
     alignItems: 'center',
   },
-  loadMoreButton: {
+  paginationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  paginationButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 8,
+    minWidth: 120,
+    height: 40,
   },
-  loadMoreText: {
-    color: '#000000',
+  paginationText: {
+    color: '#000000', // This will be overridden by the inline style
   },
 });
