@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import { useFontSizeContext } from '@/contexts/FontSizeContext';
+import * as FileSystem from 'expo-file-system';
 
 // Custom Animated Switch component
 interface AnimatedSwitchProps {
@@ -151,7 +152,8 @@ export default function SettingsScreen() {
     notifications: false,
     apiKey: false,
     autoDownload: false,
-    downloadLocation: false
+    downloadLocation: false,
+    favorites: false
   });
 
   // Dialog states
@@ -164,6 +166,12 @@ export default function SettingsScreen() {
   const [inputApiKey, setInputApiKey] = useState('');
 
   const webViewRef = useRef<WebView>(null);
+
+  const [clearFavoritesDialogVisible, setClearFavoritesDialogVisible] = useState(false);
+  const [clearCacheDialogVisible, setClearCacheDialogVisible] = useState(false);
+
+  const [aboutDialogVisible, setAboutDialogVisible] = useState(false);
+  const [contactDialogVisible, setContactDialogVisible] = useState(false);
 
   // Helper functions to update state
   const updateAuthState = (updates: Partial<typeof authState>) => {
@@ -449,18 +457,20 @@ export default function SettingsScreen() {
     loadFontSizeSetting();
   }, []);
 
-  const clearCache = () => {
-    updateLoadingStates({ cache: true });
-    
-    // Simulate cache clearing process
-    setTimeout(() => {
-      updateLoadingStates({ cache: false });
-      Alert.alert('Cache Cleared', 'All cached images have been cleared');
-    }, 1500);
+  const clearFavorites = async () => {
+    setClearFavoritesDialogVisible(true);
+  };
+
+  const clearCache = async () => {
+    setClearCacheDialogVisible(true);
   };
 
   const showAbout = () => {
-    Alert.alert('Shiori', 'Version 1.0.0\n\nA beautiful wallpaper browser app using the Wallhaven API.');
+    setAboutDialogVisible(true);
+  };
+
+  const showContact = () => {
+    setContactDialogVisible(true);
   };
 
   // Handle font size change
@@ -990,6 +1000,23 @@ export default function SettingsScreen() {
                 ) : null}
                 disabled={loadingStates.cache}
               />
+              
+              <List.Item
+                title="Clear Favorites"
+                titleStyle={{ fontSize: fontSizes.body }}
+                description="Remove all your favorite wallpapers"
+                descriptionStyle={{ fontSize: fontSizes.caption }}
+                left={props => <List.Icon {...props} icon={({size, color}) => (
+                  <Trash variant="Broken" size={size} color={color} />
+                )} />}
+                onPress={clearFavorites}
+                right={() => loadingStates.favorites ? (
+                  <View style={{ marginRight: 8 }}>
+                    <ActivityIndicator size={24} color={paperTheme.colors.primary} />
+                  </View>
+                ) : null}
+                disabled={loadingStates.favorites}
+              />
             </Card.Content>
           </Card>
           
@@ -1199,6 +1226,123 @@ export default function SettingsScreen() {
               </Surface>
             </View>
           )}
+          
+          <Dialog
+            visible={clearFavoritesDialogVisible}
+            onDismiss={() => setClearFavoritesDialogVisible(false)}
+          >
+            <Dialog.Title>Clear Favorites</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium">Are you sure you want to remove all your favorite wallpapers? This action cannot be undone.</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setClearFavoritesDialogVisible(false)}>Cancel</Button>
+              <Button
+                onPress={async () => {
+                  try {
+                    updateLoadingStates({ favorites: true });
+                    await AsyncStorage.removeItem('favorites');
+                    if (Platform.OS === 'android') {
+                      ToastAndroid.show('Favorites cleared successfully', ToastAndroid.SHORT);
+                    } else {
+                      Alert.alert('Success', 'Favorites cleared successfully');
+                    }
+                  } catch (error) {
+                    console.error('Failed to clear favorites:', error);
+                    if (Platform.OS === 'android') {
+                      ToastAndroid.show('Failed to clear favorites', ToastAndroid.SHORT);
+                    } else {
+                      Alert.alert('Error', 'Failed to clear favorites');
+                    }
+                  } finally {
+                    updateLoadingStates({ favorites: false });
+                    setClearFavoritesDialogVisible(false);
+                  }
+                }}
+                textColor={paperTheme.colors.error}
+              >
+                Clear
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+          
+          <Dialog
+            visible={clearCacheDialogVisible}
+            onDismiss={() => setClearCacheDialogVisible(false)}
+          >
+            <Dialog.Title>Clear Cache</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium">Are you sure you want to clear all cached wallpapers? This will free up storage space.</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setClearCacheDialogVisible(false)}>Cancel</Button>
+              <Button
+                onPress={async () => {
+                  try {
+                    updateLoadingStates({ cache: true });
+                    const cacheDir = FileSystem.cacheDirectory;
+                    if (cacheDir) {
+                      await FileSystem.deleteAsync(cacheDir, { idempotent: true });
+                      await FileSystem.makeDirectoryAsync(cacheDir);
+                    }
+                    if (Platform.OS === 'android') {
+                      ToastAndroid.show('Cache cleared successfully', ToastAndroid.SHORT);
+                    } else {
+                      Alert.alert('Success', 'Cache cleared successfully');
+                    }
+                  } catch (error) {
+                    console.error('Failed to clear cache:', error);
+                    if (Platform.OS === 'android') {
+                      ToastAndroid.show('Failed to clear cache', ToastAndroid.SHORT);
+                    } else {
+                      Alert.alert('Error', 'Failed to clear cache');
+                    }
+                  } finally {
+                    updateLoadingStates({ cache: false });
+                    setClearCacheDialogVisible(false);
+                  }
+                }}
+                textColor={paperTheme.colors.error}
+              >
+                Clear
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+          
+          <Dialog
+            visible={aboutDialogVisible}
+            onDismiss={() => setAboutDialogVisible(false)}
+          >
+            <Dialog.Title>About Shiori</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium">Version 1.0.0</Text>
+              <Text variant="bodyMedium" style={{ marginTop: 8 }}>
+                A beautiful wallpaper browser app using the Wallhaven API.
+              </Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setAboutDialogVisible(false)}>Close</Button>
+            </Dialog.Actions>
+          </Dialog>
+          
+          <Dialog
+            visible={contactDialogVisible}
+            onDismiss={() => setContactDialogVisible(false)}
+          >
+            <Dialog.Title>Contact Us</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium">Have feedback or found an issue?</Text>
+              <Text variant="bodyMedium" style={{ marginTop: 8 }}>
+                We'd love to hear from you! Please send your feedback or report issues to:
+              </Text>
+              <Text variant="bodyMedium" style={{ marginTop: 8, color: paperTheme.colors.primary }}>
+                support@shiori.app
+              </Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setContactDialogVisible(false)}>Close</Button>
+            </Dialog.Actions>
+          </Dialog>
         </Portal>
       </ThemedView>
     </SafeAreaView>
