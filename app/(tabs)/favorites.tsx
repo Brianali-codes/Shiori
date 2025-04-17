@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions, AppState } from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, IconButton, Button, Portal, FAB } from 'react-native-paper';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HeartIcon } from '@/components/ui/CustomIcons';
-import { ArrowDown, Heart, ArrowDown2, InfoCircle, CloseCircle } from 'iconsax-react-nativejs';
+import { ArrowDown, Heart, ArrowDown2, InfoCircle, CloseCircle, Trash } from 'iconsax-react-nativejs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontSizes } from '@/constants/FontSizes';
@@ -33,9 +33,12 @@ export default function FavoritesScreen() {
       if (savedFavorites) {
         const parsedFavorites = JSON.parse(savedFavorites);
         setFavorites(parsedFavorites);
+      } else {
+        setFavorites([]);
       }
     } catch (error) {
       console.error('Error loading favorites:', error);
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
@@ -72,6 +75,14 @@ export default function FavoritesScreen() {
     }
   };
 
+  // Use useFocusEffect to refresh favorites when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+    }, [])
+  );
+
+  // Initial load
   useEffect(() => {
     loadFavorites();
   }, []);
@@ -102,7 +113,7 @@ export default function FavoritesScreen() {
                 <View style={styles.actions}>
                   <IconButton
                     icon={({ size, color }) => (
-                      <Heart size={size} color={color} variant="Broken" />
+                      <Trash size={size} color={color} variant="Broken" />
                     )}
                     size={20}
                     onPress={() => removeFromFavorites(item.id)}

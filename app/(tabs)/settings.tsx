@@ -527,6 +527,34 @@ export default function SettingsScreen() {
     setClearFavoritesDialogVisible(true);
   };
 
+  const handleClearFavorites = async () => {
+    try {
+      updateLoadingStates({ favorites: true });
+      
+      // Clear favorites from AsyncStorage
+      await AsyncStorage.removeItem('favorites');
+      
+      // Force a refresh of the favorites page by navigating to it
+      router.push('/(tabs)/favorites');
+      
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Favorites cleared successfully', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Success', 'Favorites cleared successfully');
+      }
+    } catch (error) {
+      console.error('Failed to clear favorites:', error);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Failed to clear favorites', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Error', 'Failed to clear favorites');
+      }
+    } finally {
+      updateLoadingStates({ favorites: false });
+      setClearFavoritesDialogVisible(false);
+    }
+  };
+
   const clearCache = async () => {
     setClearCacheDialogVisible(true);
   };
@@ -1416,27 +1444,7 @@ export default function SettingsScreen() {
             <Dialog.Actions>
               <Button onPress={() => setClearFavoritesDialogVisible(false)}>Cancel</Button>
               <Button
-                onPress={async () => {
-                  try {
-                    updateLoadingStates({ favorites: true });
-                    await AsyncStorage.removeItem('favorites');
-                    if (Platform.OS === 'android') {
-                      ToastAndroid.show('Favorites cleared successfully', ToastAndroid.SHORT);
-                    } else {
-                      Alert.alert('Success', 'Favorites cleared successfully');
-                    }
-                  } catch (error) {
-                    console.error('Failed to clear favorites:', error);
-                    if (Platform.OS === 'android') {
-                      ToastAndroid.show('Failed to clear favorites', ToastAndroid.SHORT);
-                    } else {
-                      Alert.alert('Error', 'Failed to clear favorites');
-                    }
-                  } finally {
-                    updateLoadingStates({ favorites: false });
-                    setClearFavoritesDialogVisible(false);
-                  }
-                }}
+                onPress={handleClearFavorites}
                 textColor={paperTheme.colors.error}
               >
                 Clear

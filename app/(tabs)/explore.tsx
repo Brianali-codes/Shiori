@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { TouchableOpacity } from 'react-native-gesture-handler';
-import { HeartIcon } from '@/components/ui/CustomIcons';
+import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, ArrowDown, Filter, Add } from 'iconsax-react-nativejs';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
@@ -123,10 +123,17 @@ export default function ExploreScreen() {
         purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100',
       });
 
+      // Ensure each wallpaper has a unique ID by adding a timestamp if needed
+      const wallpapersWithUniqueIds = response.data.map((wallpaper, index) => ({
+        ...wallpaper,
+        uniqueId: `${wallpaper.id}_${Date.now()}_${index}`
+      }));
+
       if (isRefreshing) {
-        setWallpapers(response.data);
+        setWallpapers(wallpapersWithUniqueIds);
       } else {
-        setWallpapers(prev => [...prev, ...response.data]);
+        // Replace previous wallpapers with new ones instead of appending
+        setWallpapers(wallpapersWithUniqueIds);
       }
 
       if (response.data.length === 0) {
@@ -270,10 +277,10 @@ export default function ExploreScreen() {
               onPress={() => toggleFavorite(item)}
             >
               <BlurView intensity={25} tint="dark" style={styles.blurView}>
-                <HeartIcon
+                <Heart
                   size={22}
                   color="#FFFFFF"
-                  isFilled={isFavorite}
+                  variant={isFavorite ? "Bold" : "Broken"}
                   style={styles.heartIcon}
                 />
               </BlurView>
@@ -284,10 +291,10 @@ export default function ExploreScreen() {
               onPress={() => downloadWallpaper(item)}
             >
               <BlurView intensity={25} tint="dark" style={styles.blurView}>
-                <IconButton
-                  icon="download"
+                <ArrowDown2
                   size={22}
-                  iconColor="#FFFFFF"
+                  color="#FFFFFF"
+                  variant="Broken"
                   style={styles.downloadIcon}
                 />
               </BlurView>
@@ -300,26 +307,11 @@ export default function ExploreScreen() {
             style={styles.infoGradient}
           >
             <View style={styles.wallpaperInfo}>
-              <Text style={styles.resolutionText}>{item.resolution}</Text>
-              <View style={styles.wallpaperMeta}>
-                <View style={styles.metaItem}>
-                  <IconButton
-                    icon="image-size-select-actual"
-                    size={14}
-                    iconColor="white"
-                    style={styles.metaIcon}
-                  />
-                  <Text style={styles.wallpaperText}>{item.resolution}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <IconButton
-                    icon="heart"
-                    size={14}
-                    iconColor="white"
-                    style={styles.metaIcon}
-                  />
-                  <Text style={styles.wallpaperText}>{item.favorites}</Text>
-                </View>
+              <View style={styles.resolutionContainer}>
+                <InfoCircle size={16} color="#FFFFFF" variant="Broken" />
+                <Text style={[styles.resolution, { fontFamily: 'Nunito-Medium', fontSize: FontSizes.bodySmall }]}>
+                  {item.resolution}
+                </Text>
               </View>
             </View>
           </LinearGradient>
@@ -340,14 +332,24 @@ export default function ExploreScreen() {
         />
 
         <View style={styles.contentContainer}>
-          <Searchbar
-            placeholder="Search wallpapers..."
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            style={styles.searchBar}
-          />
+          <View style={styles.searchContainer}>
+            <SearchNormal1 size={20} color={theme.colors.primary} variant="Broken" style={styles.searchIcon} />
+            <Searchbar
+              placeholder="Search wallpapers..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.searchBar}
+              icon={() => null}
+            />
+          </View>
 
           <View style={styles.filterContainer}>
+            <View style={styles.filterHeader}>
+              <Sort size={18} color={theme.colors.primary} variant="Broken" />
+              <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                Sort by
+              </Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
               {sortOptions.map((sort) => (
                 <Chip
@@ -361,6 +363,12 @@ export default function ExploreScreen() {
               ))}
             </ScrollView>
 
+            <View style={styles.filterHeader}>
+              <Filter size={18} color={theme.colors.primary} variant="Broken" />
+              <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                Order
+              </Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderScroll}>
               {orderOptions.map((order) => (
                 <Chip
@@ -383,18 +391,31 @@ export default function ExploreScreen() {
             <FlatList
               data={wallpapers}
               renderItem={renderWallpaper}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.uniqueId || item.id}
               numColumns={2}
               contentContainerStyle={styles.wallpaperList}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
-              onEndReached={loadMore}
-              onEndReachedThreshold={0.5}
               ListFooterComponent={() => (
-                loadingMore ? (
-                  <View style={styles.loadingMoreContainer}>
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                hasMore ? (
+                  <View style={styles.loadMoreContainer}>
+                    <TouchableOpacity 
+                      style={[styles.loadMoreButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                      onPress={loadMore}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? (
+                        <ActivityIndicator size="small" color={theme.colors.primary} />
+                      ) : (
+                        <>
+                          <Add size={20} color={theme.colors.primary} variant="Broken" />
+                          <Text style={[styles.loadMoreText, { color: theme.colors.primary, fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                            Load More
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 ) : null
               )}
@@ -419,27 +440,43 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 12,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 1,
+  },
   searchBar: {
-    margin: 8,
-    borderRadius: 16,
+    flex: 1,
     elevation: 2,
+    borderRadius: 12,
   },
   filterContainer: {
-    marginHorizontal: 4,
+    marginBottom: 16,
   },
-  sortScroll: {
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  orderScroll: {
-    marginBottom: 12,
+  filterTitle: {
+    marginLeft: 8,
+  },
+  sortScroll: {
+    marginBottom: 16,
   },
   sortChip: {
     marginRight: 8,
-    marginLeft: 4,
+  },
+  orderScroll: {
+    marginBottom: 16,
   },
   orderChip: {
     marginRight: 8,
-    marginLeft: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -502,35 +539,31 @@ const styles = StyleSheet.create({
   },
   wallpaperInfo: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
-  resolutionText: {
-    color: 'white',
-    fontSize: FontSizes.caption,
-    fontFamily: 'Nunito-Bold',
-    opacity: 0.9,
-    marginBottom: 4,
-  },
-  wallpaperMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  metaItem: {
+  resolutionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  wallpaperText: {
+  resolution: {
     color: 'white',
-    marginLeft: 4,
-    fontSize: FontSizes.caption,
-    fontFamily: 'Nunito-Regular',
+    fontSize: FontSizes.bodySmall,
+    fontFamily: 'Nunito-Medium',
   },
-  loadingMoreContainer: {
+  loadMoreContainer: {
     paddingVertical: 20,
     alignItems: 'center',
   },
-  metaIcon: {
-    margin: 0,
-    padding: 0,
+  loadMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  loadMoreText: {
+    color: '#000000',
   },
 });

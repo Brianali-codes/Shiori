@@ -25,6 +25,7 @@ export interface Tag {
 
 export interface WallpaperPreview {
   id: string;
+  uniqueId?: string;
   url: string;
   short_url: string;
   views: number;
