@@ -72,7 +72,7 @@ function TabBar() {
           title: 'Home',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Home size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <Home size={22} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Home</Text>}
             </View>
           ),
@@ -85,7 +85,7 @@ function TabBar() {
           title: 'Explore',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <LocationDiscover size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <LocationDiscover size={22} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Explore</Text>}
             </View>
           ),
@@ -98,7 +98,7 @@ function TabBar() {
           title: 'Favorites',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Heart size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <Heart size={22} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Favorites</Text>}
             </View>
           ),
@@ -111,7 +111,7 @@ function TabBar() {
           title: 'Report Bug',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <MessageQuestion size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <MessageQuestion size={22} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Report</Text>}
             </View>
           ),
@@ -124,7 +124,7 @@ function TabBar() {
           title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.tabItem}>
-              <Setting size={24} color={color} variant={focused ? "Bold" : "Broken"} />
+              <Setting size={22} color={color} variant={focused ? "Bold" : "Broken"} />
               {focused && <Text style={[styles.tabLabel, { color }]}>Settings</Text>}
             </View>
           ),
@@ -156,11 +156,11 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 4,
+    paddingTop: 15,
     minWidth: 60,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 7,
     marginTop: 2,
     fontFamily: 'Nunito-Medium',
     textAlign: 'center',

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Animated, Easing, Platform, Linking, ToastAndroid } from 'react-native';
 import { List, Text, Divider, Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card, RadioButton } from 'react-native-paper';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Setting2, Moon, Sun, Paintbucket, Shield, Folder, Gallery, Lock, Notification, InfoCircle, MessageQuestion, ArrowRight2, Key, Wifi, Star, Trash, Eye, Message, Share } from 'iconsax-react-nativejs';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { wallhavenAPI, setHighQualityMode } from '../services/wallhaven';
@@ -11,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import { useFontSizeContext } from '@/contexts/FontSizeContext';
-import { Key } from 'iconsax-react-nativejs';
 
 // Custom Animated Switch component
 interface AnimatedSwitchProps {
@@ -135,9 +134,10 @@ export default function SettingsScreen() {
     notifications: true,
     downloadOnWifi: true,
     highQualityThumbs: false,
-    autoplayAnimated: true,
+    autoDownloadOnFavorite: false,
     showNsfwContent: false,
-    fontSize: 'small' as 'small' | 'medium' | 'large'
+    fontSize: 'small' as 'small' | 'medium' | 'large',
+    downloadLocation: 'gallery' as 'gallery' | 'private'
   });
 
   // Loading states
@@ -149,12 +149,15 @@ export default function SettingsScreen() {
     highQuality: false,
     wifiOnly: false,
     notifications: false,
-    apiKey: false
+    apiKey: false,
+    autoDownload: false,
+    downloadLocation: false
   });
 
   // Dialog states
   const [dialogStates, setDialogStates] = useState({
-    fontSizeVisible: false
+    fontSizeVisible: false,
+    downloadLocationVisible: false
   });
 
   const [manualKeyDialogVisible, setManualKeyDialogVisible] = useState(false);
@@ -202,6 +205,12 @@ export default function SettingsScreen() {
         if (nsfwSetting === 'true' && savedKey) { 
           // Only enable NSFW if API key exists
           updateSettings({ showNsfwContent: true });
+        }
+        
+        // Load Download Location setting
+        const savedDownloadLocation = await AsyncStorage.getItem('downloadLocation');
+        if (savedDownloadLocation && (savedDownloadLocation === 'gallery' || savedDownloadLocation === 'private')) {
+          updateSettings({ downloadLocation: savedDownloadLocation as 'gallery' | 'private' });
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -407,14 +416,21 @@ export default function SettingsScreen() {
     }
   };
 
-  // Handle autoplay animated toggle
-  const handleAutoplayToggle = async (value: boolean) => {
-    updateSettings({ autoplayAnimated: value });
+  // Handle auto-download on favorite toggle
+  const handleAutoDownloadToggle = async (value: boolean) => {
+    updateLoadingStates({ autoDownload: true });
+    updateSettings({ autoDownloadOnFavorite: value });
     
     try {
-      await AsyncStorage.setItem('autoplayAnimated', value ? 'true' : 'false');
+      await AsyncStorage.setItem('autoDownloadOnFavorite', value ? 'true' : 'false');
+      
+      // Add a small delay to show the loading indicator
+      setTimeout(() => {
+        updateLoadingStates({ autoDownload: false });
+      }, 600);
     } catch (error) {
-      console.error('Failed to save autoplay setting:', error);
+      console.error('Failed to save auto-download setting:', error);
+      updateLoadingStates({ autoDownload: false });
     }
   };
 
@@ -641,6 +657,33 @@ export default function SettingsScreen() {
     }
   };
 
+  // Handle download location change
+  const handleDownloadLocationChange = async (value: string) => {
+    if (value === 'gallery' || value === 'private') {
+      updateLoadingStates({ downloadLocation: true });
+      
+      try {
+        await AsyncStorage.setItem('downloadLocation', value);
+        updateSettings({ downloadLocation: value as 'gallery' | 'private' });
+        
+        // Show a brief loading indicator
+        setTimeout(() => {
+          updateLoadingStates({ downloadLocation: false });
+          updateDialogStates({ downloadLocationVisible: false });
+          if (Platform.OS === 'android') {
+            ToastAndroid.show('Download location updated', ToastAndroid.SHORT);
+          } else {
+            Alert.alert('Success', 'Download location updated');
+          }
+        }, 600);
+        
+      } catch (error) {
+        console.error('Failed to save download location setting:', error);
+        updateLoadingStates({ downloadLocation: false });
+      }
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <ThemedView style={styles.container}>
@@ -657,7 +700,7 @@ export default function SettingsScreen() {
             <Card.Content>
               <View style={styles.userInfo}>
                 <Avatar.Icon 
-                  icon={() => <MaterialIcons name="account-circle" size={30} color={paperTheme.colors.primary} />} 
+                  icon={() => <Key variant="Broken" size={30} color={paperTheme.colors.primary} />} 
                   size={60} 
                   style={{ backgroundColor: paperTheme.colors.surfaceVariant }}
                 />
@@ -688,7 +731,7 @@ export default function SettingsScreen() {
                   disabled={authState.loading}
                   labelStyle={{ fontSize: fontSizes.body }}
                   icon={({size, color}) => (
-                    <Key size={20} color={color} variant="Broken" />
+                    <Key variant="Broken" size={20} color={color} />
                   )}
                 >
                   Get Your API Key
@@ -731,7 +774,7 @@ export default function SettingsScreen() {
                 description={`${settings.fontSize.charAt(0).toUpperCase() + settings.fontSize.slice(1)} text scaling`}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="format-size" size={size} color={color} />
+                  <Setting2 variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => updateDialogStates({ fontSizeVisible: true })}
               />
@@ -748,7 +791,7 @@ export default function SettingsScreen() {
                 description="Save mobile data by downloading only on Wi-Fi"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="wifi" size={size} color={color} />
+                  <Wifi variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
                   loadingStates.wifiOnly ? (
@@ -771,7 +814,7 @@ export default function SettingsScreen() {
                 description="Load higher resolution thumbnails and previews"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="high-quality" size={size} color={color} />
+                  <Star variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
                   loadingStates.highQuality ? (
@@ -791,57 +834,63 @@ export default function SettingsScreen() {
               <List.Item
                 title="Download Location"
                 titleStyle={{ fontSize: fontSizes.body }}
-                description="Choose where to save wallpapers"
+                description={settings.downloadLocation === 'gallery' ? 'Save to Gallery (Shiori album)' : 'Save to App\'s Private Folder'}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="folder" size={size} color={color} />
+                  <Folder variant="Broken" size={size} color={color} />
                 )} />}
-                right={props => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => updateDialogStates({ downloadLocationVisible: true })}
+                right={props => loadingStates.downloadLocation ? 
+                  <ActivityIndicator size="small" color={paperTheme.colors.primary} style={{ marginRight: 8}} /> : 
+                  <List.Icon {...props} icon="chevron-right" />}
+                disabled={loadingStates.downloadLocation}
               />
               
               <List.Item
-                title="Auto-play Animated Wallpapers"
+                title="Auto-download on Favorite"
                 titleStyle={{ fontSize: fontSizes.body }}
-                description="Play animated wallpapers automatically"
+                description="Automatically download wallpapers when marked as favorite"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="play-circle" size={size} color={color} />
+                  <Star variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
-                  <AnimatedSwitch 
-                    value={settings.autoplayAnimated}
-                    onValueChange={handleAutoplayToggle}
-                  />
+                  loadingStates.autoDownload ? (
+                    <View style={{ marginRight: 8 }}>
+                      <ActivityIndicator size={24} color={paperTheme.colors.primary} />
+                    </View>
+                  ) : (
+                    <AnimatedSwitch 
+                      value={settings.autoDownloadOnFavorite}
+                      onValueChange={handleAutoDownloadToggle}
+                    />
+                  )
                 )}
+                disabled={loadingStates.autoDownload}
               />
             </Card.Content>
           </Card>
           
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>NOTIFICATIONS</Text>
+              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>SHARING</Text>
               
               <List.Item
-                title="Enable Notifications"
+                title="Share to PC"
                 titleStyle={{ fontSize: fontSizes.body }}
-                description="Get notified about new wallpapers"
+                description="Share wallpapers to your computer"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="notifications" size={size} color={color} />
+                  <Share variant="Broken" size={size} color={color} />
                 )} />}
-                right={() => (
-                  loadingStates.notifications ? (
-                    <View style={{ marginRight: 8 }}>
-                      <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                    </View>
-                  ) : (
-                    <AnimatedSwitch 
-                      value={settings.notifications}
-                      onValueChange={handleNotificationsToggle}
-                    />
-                  )
-                )}
-                disabled={loadingStates.notifications}
+                onPress={() => {
+                  // This will be implemented later
+                  if (Platform.OS === 'android') {
+                    ToastAndroid.show('Feature coming soon', ToastAndroid.SHORT);
+                  } else {
+                    Alert.alert('Coming Soon', 'This feature will be available in a future update');
+                  }
+                }}
               />
             </Card.Content>
           </Card>
@@ -856,7 +905,7 @@ export default function SettingsScreen() {
                 description={authState.hasApiKey ? 'API key is set and active' : 'No API key set'}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="vpn-key" size={size} color={color} />
+                  <Key variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => updateAuthState({ wallhavenAuthVisible: true })}
                 right={() => authState.hasApiKey ? (
@@ -890,7 +939,7 @@ export default function SettingsScreen() {
                       }}
                       style={{ margin: 0 }}
                     />
-                    <MaterialIcons name="check-circle" size={24} color={paperTheme.colors.primary} style={{ marginLeft: 4, marginRight: 8 }} />
+                    <Star variant="Broken" size={24} color={paperTheme.colors.primary} style={{ marginLeft: 4, marginRight: 8 }} />
                   </View>
                 ) : null}
               />
@@ -901,7 +950,7 @@ export default function SettingsScreen() {
                 description={authState.hasApiKey ? "Enable to show NSFW and sketchy content (requires API key)" : "API key required to view NSFW and sketchy content"}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="visibility" size={size} color={color} />
+                  <Eye variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
                   loadingStates.nsfw ? (
@@ -931,7 +980,7 @@ export default function SettingsScreen() {
                 description="Free up space by clearing cached images"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="delete" size={size} color={color} />
+                  <Trash variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={clearCache}
                 right={() => loadingStates.cache ? (
@@ -954,7 +1003,7 @@ export default function SettingsScreen() {
                 description="Version 1.0.0"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="info" size={size} color={color} />
+                  <InfoCircle variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={showAbout}
               />
@@ -965,7 +1014,7 @@ export default function SettingsScreen() {
                 description="Enjoying Shiori? Let us know!"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="star" size={size} color={color} />
+                  <Star variant="Broken" size={size} color={color} />
                 )} />}
               />
               
@@ -975,7 +1024,7 @@ export default function SettingsScreen() {
                 description="Send feedback or report issues"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({size, color}) => (
-                  <MaterialIcons name="email" size={size} color={color} />
+                  <Message variant="Broken" size={size} color={color} />
                 )} />}
               />
             </Card.Content>
@@ -1000,7 +1049,7 @@ export default function SettingsScreen() {
                   <Button 
                     mode="contained" 
                     icon={({size, color}) => (
-                      <MaterialIcons name="open-in-new" size={18} color={color} />
+                      <ArrowRight2 variant="Broken" size={18} color={color} />
                     )}
                     onPress={openWallhavenWebsite}
                     style={{ marginBottom: 12 }}
@@ -1012,7 +1061,7 @@ export default function SettingsScreen() {
                   <Button 
                     mode="outlined"
                     icon={({size, color}) => (
-                      <MaterialIcons name="vpn-key" size={18} color={color} />
+                      <Key variant="Broken" size={18} color={color} />
                     )}
                     onPress={showManualKeyDialog}
                     labelStyle={{ fontSize: fontSizes.body }}
@@ -1099,6 +1148,35 @@ export default function SettingsScreen() {
             <Dialog.Actions>
               <Button onPress={() => updateDialogStates({ fontSizeVisible: false })} labelStyle={{ fontSize: fontSizes.body }}>Cancel</Button>
               <Button onPress={() => handleFontSizeChange(settings.fontSize)} labelStyle={{ fontSize: fontSizes.body }}>Apply</Button>
+            </Dialog.Actions>
+          </Dialog>
+          
+          {/* Download Location Dialog */}
+          <Dialog visible={dialogStates.downloadLocationVisible} onDismiss={() => updateDialogStates({ downloadLocationVisible: false })}> 
+            <Dialog.Title style={{ fontSize: fontSizes.h3 }}>Download Location</Dialog.Title>
+            <Dialog.Content>
+              <RadioButton.Group onValueChange={handleDownloadLocationChange} value={settings.downloadLocation}>
+                <RadioButton.Item 
+                  label="Gallery (Recommended)"
+                  value="gallery"
+                  position="leading"
+                  style={styles.radioItem}
+                  labelStyle={{ fontSize: fontSizes.body }}
+                />
+                <Text style={[styles.radioDescription, { fontSize: fontSizes.caption }]}>Saves wallpapers to your device's gallery in a 'Shiori' album.</Text>
+                
+                <RadioButton.Item 
+                  label="App's Private Folder"
+                  value="private"
+                  position="leading"
+                  style={styles.radioItem}
+                  labelStyle={{ fontSize: fontSizes.body }}
+                />
+                <Text style={[styles.radioDescription, { fontSize: fontSizes.caption }]}>Saves wallpapers inside the app's storage. Files may not be easily accessible outside the app.</Text>
+              </RadioButton.Group>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => updateDialogStates({ downloadLocationVisible: false })} labelStyle={{ fontSize: fontSizes.body }}>Cancel</Button>
             </Dialog.Actions>
           </Dialog>
           
@@ -1260,4 +1338,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 500,
   },
+  radioDescription: {
+    paddingLeft: 48, // Align with radio button text
+    paddingRight: 16,
+    marginBottom: 16,
+    opacity: 0.7,
+  }
 }); 

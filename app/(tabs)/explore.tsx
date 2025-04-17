@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform } from 'react-native';
+import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid } from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
 import { Stack } from 'expo-router';
@@ -165,37 +165,93 @@ export default function ExploreScreen() {
 
   const downloadWallpaper = async (wallpaper: WallpaperPreview) => {
     try {
-      // Request permissions
+      // Check permissions
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Please grant permission to save images to your device.');
+        Alert.alert(
+          'Permission Required',
+          'Shiori needs storage permission to save wallpapers to your device.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => Linking.openSettings() }
+          ]
+        );
         return;
       }
 
-      // Show loading alert
-      Alert.alert('Downloading', 'Please wait while we download your wallpaper...');
+      // Get download location preference
+      const downloadLocation = await AsyncStorage.getItem('downloadLocation') || 'gallery';
+      
+      // Generate a unique filename with timestamp to avoid conflicts
+      const timestamp = new Date().getTime();
+      const fileName = `shiori_${wallpaper.id}_${timestamp}.${wallpaper.file_type.split('/')[1] || 'jpg'}`;
+      
+      let fileUri: string;
+      
+      if (downloadLocation === 'gallery') {
+        // Download to temporary directory first
+        const tempUri = FileSystem.cacheDirectory + fileName;
+        const downloadResumable = FileSystem.createDownloadResumable(
+          wallpaper.thumbs.large,
+          tempUri
+        );
 
-      // Download the image
-      const fileUri = `${FileSystem.documentDirectory}${wallpaper.id}.jpg`;
-      const { uri } = await FileSystem.downloadAsync(
-        wallpaper.path,
-        fileUri
-      );
+        const result = await downloadResumable.downloadAsync();
+        if (!result) throw new Error('Download failed');
 
-      // Save to media library
-      const asset = await MediaLibrary.createAssetAsync(uri);
-      await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+        // Save to media library
+        const asset = await MediaLibrary.createAssetAsync(result.uri);
+        
+        // Try to save to album
+        try {
+          const album = await MediaLibrary.getAlbumAsync('Shiori');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+          }
+        } catch (error) {
+          console.error('Album error:', error);
+        }
+        
+        // Clean up temp file
+        await FileSystem.deleteAsync(tempUri);
+        
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Wallpaper saved to your gallery');
+        }
+      } else {
+        // Download to app's private directory
+        const privateDir = FileSystem.documentDirectory + 'wallpapers/';
+        
+        // Ensure directory exists
+        const dirInfo = await FileSystem.getInfoAsync(privateDir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
+        }
+        
+        fileUri = privateDir + fileName;
+        const downloadResumable = FileSystem.createDownloadResumable(
+          wallpaper.thumbs.large,
+          fileUri
+        );
 
-      // Clean up
-      await FileSystem.deleteAsync(fileUri);
+        const result = await downloadResumable.downloadAsync();
+        if (!result) throw new Error('Download failed');
 
-      // Show success message
-      Alert.alert('Success', 'Wallpaper downloaded successfully!');
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Wallpaper saved to app storage', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Wallpaper saved to app storage');
+        }
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.error('Error downloading wallpaper:', error);
-      Alert.alert('Error', 'Failed to download wallpaper. Please try again.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to download the wallpaper. Please try again.');
     }
   };
 

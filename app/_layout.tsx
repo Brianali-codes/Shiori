@@ -174,10 +174,10 @@ function NavigationRoot() {
   return (
     <PaperProvider theme={paperTheme}>
       <NavigationThemeProvider value={navigationTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
         <StatusBar style={isDark || isAmoled ? 'light' : 'dark'} />
       </NavigationThemeProvider>
     </PaperProvider>
@@ -193,7 +193,7 @@ export default function RootLayout() {
           <FontSizeProvider>
             <NavigationRoot />
           </FontSizeProvider>
-        </ThemeProvider>
+    </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

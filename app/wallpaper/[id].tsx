@@ -15,6 +15,7 @@ import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft } from 'iconsax-react-nativejs';
+import NetInfo from '@react-native-community/netinfo';
 
 const { width, height } = Dimensions.get('window');
 
@@ -142,6 +143,22 @@ export default function WallpaperScreen() {
     const hasPermission = await checkPermissions();
     if (!hasPermission) return;
     
+    // Check if download on WiFi only is enabled
+    const downloadOnWifi = await AsyncStorage.getItem('downloadOnWifi') === 'true';
+    
+    if (downloadOnWifi) {
+      // Check network type
+      const netInfo = await NetInfo.fetch();
+      if (netInfo.type !== 'wifi') {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Please connect to WiFi to download', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('WiFi Required', 'Please connect to WiFi to download wallpapers');
+        }
+        return;
+      }
+    }
+
     // Start downloading
     setDownloading(true);
     setDownloadProgress(0);
@@ -151,50 +168,48 @@ export default function WallpaperScreen() {
     // Generate a unique filename with timestamp to avoid conflicts
     const timestamp = new Date().getTime();
     const fileName = `shiori_${wallpaper.id}_${quality}_${timestamp}.${wallpaper.file_type.split('/')[1] || 'jpg'}`;
-    const fileUri = FileSystem.documentDirectory + fileName;
-
+    
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
-      // Download with progress tracking
-      const downloadResumable = FileSystem.createDownloadResumable(
-        downloadUrl,
-        fileUri,
-        {},
-        (downloadProgress) => {
-          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          setDownloadProgress(progress);
-        }
-      );
+      // Get download location preference
+      const downloadLocation = await AsyncStorage.getItem('downloadLocation') || 'gallery';
+      
+      if (downloadLocation === 'gallery') {
+        // Download to temporary directory first
+        const tempUri = FileSystem.cacheDirectory + fileName;
+        const downloadResumable = FileSystem.createDownloadResumable(
+          downloadUrl,
+          tempUri,
+          {},
+          (downloadProgress) => {
+            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+            setDownloadProgress(progress);
+          }
+        );
 
-      console.log(`Starting download from: ${downloadUrl}`);
-      const downloadResult = await downloadResumable.downloadAsync();
-      
-      if (!downloadResult || !downloadResult.uri) {
-        throw new Error('Download failed - no file URI returned');
-      }
-      
-      console.log(`File downloaded to: ${downloadResult.uri}`);
-      
-      // Save download preference
-      try {
-        await AsyncStorage.setItem('lastDownloadQuality', quality);
-      } catch (e) {
-        console.warn('Could not save download preference', e);
-      }
-      
-      // Save to media library
-      const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-      
-      // Try to save to album
-      try {
-        const album = await MediaLibrary.getAlbumAsync('Shiori');
-        
-        if (album) {
-          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-        } else {
-          await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+        const result = await downloadResumable.downloadAsync();
+        if (!result || !result.uri) {
+          throw new Error('Download failed - no file URI returned');
         }
+        
+        // Save to media library
+        const asset = await MediaLibrary.createAssetAsync(result.uri);
+        
+        // Try to save to album
+        try {
+          const album = await MediaLibrary.getAlbumAsync('Shiori');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+          }
+        } catch (albumError) {
+          console.error('Album error:', albumError);
+        }
+        
+        // Clean up temp file
+        await FileSystem.deleteAsync(tempUri);
         
         // Success notification
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -204,13 +219,39 @@ export default function WallpaperScreen() {
         } else {
           Alert.alert('Success', `Wallpaper saved to your gallery (${quality})`);
         }
-      } catch (albumError) {
-        console.error('Album error:', albumError);
-        // At least the asset was saved to the library, so show success message
+      } else {
+        // Download to app's private directory
+        const privateDir = FileSystem.documentDirectory + 'wallpapers/';
+        
+        // Ensure directory exists
+        const dirInfo = await FileSystem.getInfoAsync(privateDir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
+        }
+        
+        const fileUri = privateDir + fileName;
+        const downloadResumable = FileSystem.createDownloadResumable(
+          downloadUrl,
+          fileUri,
+          {},
+          (downloadProgress) => {
+            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+            setDownloadProgress(progress);
+          }
+        );
+
+        const result = await downloadResumable.downloadAsync();
+        if (!result || !result.uri) {
+          throw new Error('Download failed - no file URI returned');
+        }
+        
+        // Success notification
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        
         if (Platform.OS === 'android') {
-          ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
+          ToastAndroid.show(`Wallpaper saved to app storage (${quality})`, ToastAndroid.SHORT);
         } else {
-          Alert.alert('Success', 'Wallpaper saved to your gallery');
+          Alert.alert('Success', `Wallpaper saved to app storage (${quality})`);
         }
       }
       
