@@ -262,7 +262,7 @@ class WallhavenAPI {
         meta: { 
           current_page: 1, 
           last_page: 1, 
-          per_page: 24, 
+          per_page: 25, 
           total: 0, 
           query: null, 
           seed: null 
