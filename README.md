@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Shiori
 
 A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.
@@ -156,6 +156,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 =======
-<img src="https://github.com/user-attachments/assets/e0e37a93-f1c6-4478-88c8-eb39cfc5cd45" width="200" />
-Shiori
->>>>>>> b6059f21acc75b7bfea1a12dcdbd37c25a2791fb
+
