@@ -3,8 +3,7 @@
 
 A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.
 
-![shiori2](https://github.com/user-attachments/assets/6d1d5d51-b47f-40c1-9940-7cf6fb8392d1)
-
+<img src="https://github.com/user-attachments/assets/6d1d5d51-b47f-40c1-9940-7cf6fb8392d1" width="200" />
 
 ## Overview
 
