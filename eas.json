@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 3.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -27,7 +28,16 @@
       "autoIncrement": true,
       "android": {
         "buildType": "apk",
-        "image": "latest"
+        "gradleCommand": ":app:assembleRelease",
+        "withoutCredentials": true,
+        "image": "latest",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://api.wallhaven.cc",
+          "EXPO_OPTIMIZE": "true"
+        },
+        "cache": {
+          "key": "split-apks"
+        }
       }
     },
     "test": {
@@ -47,4 +57,4 @@
   "submit": {
     "production": {}
   }
-} 
+}

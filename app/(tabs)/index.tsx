@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { Heart, ArrowDown2, InfoCircle, SearchNormal1,ArchiveTick, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2, Star, Clock, Like1, More2, Eye, HeartCircle, } from 'iconsax-react-nativejs';
 import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge, Searchbar, IconButton } from 'react-native-paper';
+import { Image as Image1 } from 'iconsax-react-nativejs';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -216,7 +218,7 @@ export default function HomeScreen() {
           page: 1,
           purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
         });
-        setMoreWallpapers(moreResponse.data);
+        setMoreWallpapers(moreResponse.data.slice(0, 15));
       } catch (error) {
         console.error('Failed to fetch home data:', error);
       } finally {
@@ -254,11 +256,11 @@ export default function HomeScreen() {
       >
         <View style={styles.featuredInfo}>
           <View style={styles.featuredMeta}>
-            <IconSymbol name="rectangle.stack.fill" size={16} color="white" />
+          <Image1 size={18} color={theme.colors.primary} variant="Broken" />
             <Text style={styles.featuredText}>{item.resolution}</Text>
           </View>
           <View style={styles.featuredMeta}>
-            <IconSymbol name="heart.fill" size={16} color="white" />
+          <HeartCircle size={18} color={theme.colors.primary} variant="Broken" />
             <Text style={styles.featuredText}>{item.favorites}</Text>
           </View>
         </View>
@@ -284,11 +286,11 @@ export default function HomeScreen() {
           <Text style={styles.wallpaperSection}>{sectionTitle}</Text>
           <View style={styles.wallpaperMeta}>
             <View style={styles.metaItem}>
-              <IconSymbol name="rectangle.stack.fill" size={14} color="white" />
+              <Image1 size={18} color={theme.colors.primary} variant="Broken" />
               <Text style={styles.wallpaperText}>{item.resolution}</Text>
             </View>
             <View style={styles.metaItem}>
-              <IconSymbol name="heart.fill" size={14} color="white" />
+            <HeartCircle size={18} color={theme.colors.primary} variant="Broken" />
               <Text style={styles.wallpaperText}>{item.favorites}</Text>
             </View>
           </View>
@@ -342,9 +344,9 @@ export default function HomeScreen() {
         purity: purityParam, // Use the specific purity parameter
       });
       
-      setFeaturedWallpapers(response.data.slice(0, 5));
-      setLatestWallpapers(response.data.slice(5, 11));
-      setTopWallpapers(response.data.slice(11, 17));
+      setFeaturedWallpapers(response.data.slice(0, 9));
+      setLatestWallpapers(response.data.slice(10, 19));
+      setTopWallpapers(response.data.slice(20, 29));
     } catch (error) {
       console.error('Error loading wallpapers:', error);
     } finally {
@@ -445,19 +447,18 @@ export default function HomeScreen() {
           }}
         />
         
-        <Searchbar
-          placeholder="Search wallpapers..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchBar}
-          onSubmitEditing={handleSearch}
-          right={() => (
-            <IconButton
-              icon="magnify"
-              onPress={handleSearch}
+          <View style={styles.searchContainer}>
+            <SearchNormal1 size={20} color={theme.colors.primary} variant="Broken" style={styles.searchIcon} />
+            <Searchbar
+              placeholder="Search wallpapers..."
+              onChangeText={setSearchQuery}
+              value={searchQuery}
+              style={styles.searchBar}
+              icon={() => null}
             />
-          )}
-        />
+          </View>
+
+        
 
         <View style={styles.filterContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
@@ -489,7 +490,11 @@ export default function HomeScreen() {
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
+            <View style={styles.filterHeader}>
+              <ArchiveTick size={18} color={theme.colors.primary} variant="Broken" />
+              <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
+            </View>
+            <View style={styles.filterHeader}>
             <Button 
               mode="text" 
               onPress={() => router.push('/explore')}
@@ -497,6 +502,8 @@ export default function HomeScreen() {
             >
               See all
             </Button>
+            </View>
+            
           </View>
           
           <FlatList
@@ -512,7 +519,10 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>Popular Categories</Text>
+            <View style={styles.filterHeader}>
+              <Star size={18} color={theme.colors.primary} variant="Broken" />
+              <Text variant="headlineSmall" style={styles.sectionTitle}>Popular Categories</Text>
+            </View>
             </View>
             <View style={styles.categoriesGrid}>
               {popularCategories.map((category) => (
@@ -538,14 +548,19 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>Latest Additions</Text>
-              <Button
-                mode="text"
-                onPress={() => router.push('/explore')}
-                compact
-              >
-                More
-              </Button>
+            <View style={styles.filterHeader}>
+              <Clock size={18} color={theme.colors.primary} variant="Broken" />
+              <Text variant="headlineSmall" style={styles.sectionTitle}>Latest Additions</Text>
+            </View>
+            <View style={styles.filterHeader}>
+            <Button 
+              mode="text" 
+              onPress={() => router.push('/explore')}
+              compact
+            >
+              See all
+            </Button>
+            </View>
             </View>
             
             <FlatList
@@ -562,14 +577,19 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>Top Rated</Text>
-              <Button
-                mode="text"
-                onPress={() => router.push('/explore')}
-                compact
-              >
-                More
-              </Button>
+            <View style={styles.filterHeader}>
+              <Like1 size={18} color={theme.colors.primary} variant="Broken" />
+              <Text variant="headlineSmall" style={styles.sectionTitle}>Top Rated</Text>
+            </View>
+            <View style={styles.filterHeader}>
+            <Button 
+              mode="text" 
+              onPress={() => router.push('/explore')}
+              compact
+            >
+              See all
+            </Button>
+            </View>
             </View>
             
             <FlatList
@@ -586,7 +606,10 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-              <Text variant="titleMedium" style={styles.sectionTitle}>More Wallpapers</Text>
+              <View style={styles.filterHeader}>
+                <More2 size={18} color={theme.colors.primary} variant="Broken" />
+                <Text variant="headlineSmall" style={styles.sectionTitle}>More Wallpapers</Text>
+              </View>
             </View>
             
             <View style={styles.moreWallpapersGrid}>
@@ -606,7 +629,7 @@ export default function HomeScreen() {
             
             {hasMore && (
               <Button
-                mode="text"
+                mode="contained"
                 onPress={loadMoreWallpapers}
                 loading={loadingMore}
                 style={styles.loadMoreButton}
@@ -645,6 +668,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h3,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 35,
+    zIndex: 1,
   },
   featuredList: {
     paddingLeft: 16,
@@ -691,6 +719,12 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginTop: 16,
     marginBottom: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
   },
   collectionsGrid: {
     flexDirection: 'row',
@@ -779,11 +813,11 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.body,
   },
   footer: {
-    height: 50,
+    height: 10,
   },
   searchBar: {
     margin: 16,
-    borderRadius: 16,
+    borderRadius: 25,
   },
   filterContainer: {
     paddingHorizontal: 16,
@@ -815,11 +849,17 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
   },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap:5,
+    marginBottom: 8,
+  },
   moreWallpapersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   moreWallpaperItem: {
     width: '33.33%',
@@ -865,7 +905,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Medium',
   },
   loadMoreButton: {
+    alignSelf:'center',
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 10,
+    width:'50%',
   },
 } as const);

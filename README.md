@@ -1,50 +1,155 @@
-# Welcome to your Expo app 👋
+# Shiori
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.
 
-## Get started
+![App Logo](/api/placeholder/200/200)
 
-1. Install dependencies
+## Overview
 
-   ```bash
-   npm install
-   ```
+Shiori is a sleek, Material Design-inspired wallpaper application that allows users to browse, search, filter, and apply wallpapers directly to their devices. The app features Google Pixel-like icons and a modern UI/UX design for an intuitive user experience.
 
-2. Start the app
+## Features
 
-   ```bash
-    npx expo start
-   ```
+- **Curated Wallpapers**: Access thousands of high-quality wallpapers from Wallhaven
+- **Material Design**: Modern UI with smooth animations and transitions
+- **Advanced Filtering**: Filter wallpapers by category, resolution, colors, and more
+- **Search Functionality**: Find specific wallpapers using keywords
+- **Favorites**: Save your favorite wallpapers for quick access
+- **Direct Apply**: Set wallpapers directly from the app
+- **Download Manager**: Download wallpapers to your device
+- **Dark Mode**: Full support for light and dark themes
+- **Customizable Settings**: Personalize your experience
 
-In the output, you'll find options to open the app in a
+## App Structure
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+├── assets/                 # Static assets like icons, fonts, etc.
+├── components/             # Reusable UI components
+│   ├── common/             # Shared components (buttons, cards, etc.)
+│   ├── wallpaper/          # Wallpaper-specific components
+│   └── navigation/         # Navigation-related components
+├── hooks/                  # Custom React hooks
+├── navigation/             # Navigation configuration
+│   ├── MainTabNavigator.js # Main tab navigation setup
+│   ├── StackNavigators.js  # Stack navigators for each tab
+│   └── index.js            # Root navigation setup
+├── screens/                # App screens
+│   ├── Home/               # Home screen components
+│   ├── Search/             # Search screen components
+│   ├── Filters/            # Filters screen components
+│   ├── Favorites/          # Favorites screen components
+│   ├── Settings/           # Settings screen components
+│   └── Detail/             # Wallpaper detail screen components
+├── services/               # API and other service integrations
+│   ├── api/                # API configuration and requests
+│   ├── storage/            # Local storage utilities
+│   └── wallpaper/          # Wallpaper-related services
+├── store/                  # State management
+│   ├── actions/            # Action creators
+│   ├── reducers/           # Reducers
+│   ├── selectors/          # State selectors
+│   └── index.js            # Store configuration
+├── theme/                  # App theming
+│   ├── colors.js           # Color palette
+│   ├── typography.js       # Text styles
+│   ├── spacing.js          # Layout spacing
+│   └── index.js            # Theme provider
+├── utils/                  # Utility functions
+└── App.js                  # Root component
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Screens
 
-## Learn more
+### Home Tab
+- Featured wallpapers
+- Latest uploads
+- Popular wallpapers
+- Categories showcase
 
-To learn more about developing your project with Expo, look at the following resources:
+### Search Tab
+- Search bar with suggestions
+- Recent searches
+- Trending searches
+- Search results with infinite scroll
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Filters Tab
+- Category selection
+- Color picker
+- Resolution options
+- Aspect ratio selection
+- Sorting options (newest, popularity, random)
+- Advanced filters (NSFW toggle, etc.)
 
-## Join the community
+### Favorites Tab
+- Grid view of saved wallpapers
+- Collection organization
+- Download status
 
-Join our community of developers creating universal apps.
+### Settings Tab
+- Theme selection (Light/Dark/System)
+- Download preferences
+- Cache management
+- Notification settings
+- App information
+- User preferences
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Technical Stack
+
+- **React Native**: Core framework
+- **React Navigation**: Navigation between screens
+- **Redux Toolkit**: State management
+- **Axios**: API requests
+- **React Native Paper**: Material Design components
+- **React Native Vector Icons**: Icon library for Google Pixel-like icons
+- **React Native Fast Image**: Efficient image loading
+- **Async Storage**: Local storage solution
+- **React Native Reanimated**: Advanced animations
+
+## API Integration
+
+The app integrates with the Wallhaven API to fetch wallpapers. The API provides endpoints for:
+
+- Searching wallpapers
+- Filtering by various parameters
+- Getting wallpaper details
+- Accessing collections
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/shiori.git
+
+# Navigate to the project directory
+cd shiori
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm start
+
+# Run on iOS
+npm run ios
+
+# Run on Android
+npm run android
+```
+
+## Configuration
+
+Create a `.env` file in the root directory with your Wallhaven API key:
+
+```
+WALLHAVEN_API_KEY=your_api_key_here
+API_BASE_URL=https://wallhaven.cc/api/v1
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

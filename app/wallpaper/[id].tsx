@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image as Image1 } from 'iconsax-react-nativejs';
 import React, { useEffect, useState, useRef } from 'react';
 import { Image, StyleSheet, View, Dimensions, ActivityIndicator, TouchableOpacity, Share, Animated, Platform, Alert, Linking, ToastAndroid } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -14,8 +15,13 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft } from 'iconsax-react-nativejs';
+import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft, Back, ArrowDown2, ArrowCircleDown2 } from 'iconsax-react-nativejs';
 import NetInfo from '@react-native-community/netinfo';
+import { Stack } from 'expo-router';
+
+export const options = {
+  headerShown: false,
+};
 
 const { width, height } = Dimensions.get('window');
 
@@ -38,6 +44,7 @@ export default function WallpaperScreen() {
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState('original');
 
+  
   // Calculate header opacity based on scroll position
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 100, 200],
@@ -364,6 +371,8 @@ export default function WallpaperScreen() {
   );
 
   return (
+    
+    
     <ThemedView style={styles.container}>
       <StatusBar style={isDark ? "light" : "dark"} />
       
@@ -371,10 +380,10 @@ export default function WallpaperScreen() {
       <View style={{ position: 'absolute', top: 40, left: 12, zIndex: 10 }}>
         <IconButton
           icon={() => (
-            <ArrowLeft 
+            <Back
               size={24} 
               color="white" 
-              variant="Bold"
+              variant="Broken"
               style={styles.backIcon} 
             />
           )}
@@ -404,7 +413,7 @@ export default function WallpaperScreen() {
             <ShareIcon 
               size={24} 
               color="white" 
-              variant="Bold"
+              variant="Broken"
             />
           )}
           size={40}
@@ -589,7 +598,12 @@ export default function WallpaperScreen() {
               <Button 
                 mode="contained" 
                 onPress={showDownloadOptions}
-                icon={() => <IconSymbol name="arrow.down.to.line" size={18} color="white" />}
+                icon={() =>  
+                <ArrowCircleDown2
+                  size={24} 
+                  color="black" 
+                  variant="Broken"
+                />}
                 style={[styles.button, { backgroundColor: paperTheme.colors.primary }]}
               >
                 Download
@@ -598,7 +612,12 @@ export default function WallpaperScreen() {
               <Button 
                 mode="outlined" 
                 onPress={applyWallpaper}
-                icon={() => <IconSymbol name="photo" size={18} color={paperTheme.colors.primary} />}
+                icon={() => 
+                <Image1
+                  size={24} 
+                  color="white" 
+                  variant="Broken"
+                />}
                 style={styles.button}
               >
                 Set as Wallpaper
@@ -609,7 +628,13 @@ export default function WallpaperScreen() {
           </ThemedScrollView>
           
           <FAB
-            icon={() => <IconSymbol name="arrow.down.to.line" size={20} color="white" />}
+            icon={() => 
+              <ArrowCircleDown2
+              size={24} 
+              color="white" 
+              variant="Broken"
+            />
+            }
             style={styles.fab}
             onPress={showDownloadOptions}
             mode="elevated"
@@ -625,7 +650,12 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('original')}
                     style={styles.downloadButton}
-                    icon={() => <DocumentDownload size={20} color={paperTheme.colors.primary} />}
+                    icon={() =>  
+                    <ArrowCircleDown2
+                      size={24} 
+                      color="white" 
+                      variant="Broken"
+                    />}
                   >
                     Original ({wallpaper.resolution})
                   </Button>
@@ -633,7 +663,13 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('large')}
                     style={styles.downloadButton}
-                    icon={() => <DocumentDownload size={20} color={paperTheme.colors.primary} />}
+                    icon={() => 
+                      <ArrowCircleDown2
+                      size={24} 
+                      color="white" 
+                      variant="Broken"
+                    />
+                    }
                   >
                     Large Thumbnail
                   </Button>
@@ -641,7 +677,14 @@ export default function WallpaperScreen() {
                     mode="outlined" 
                     onPress={() => downloadWallpaper('small')}
                     style={styles.downloadButton}
-                    icon={() => <DocumentDownload size={20} color={paperTheme.colors.primary} />}
+                    icon={() => 
+                      <ArrowCircleDown2
+                      size={24} 
+                      color="white" 
+                      variant="Broken"
+                      style={styles.downloadButton}
+                    />
+                    }
                   >
                     Small Thumbnail
                   </Button>
@@ -854,7 +897,7 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   footer: {
-    height: 80,
+    height: 10,
   },
   fab: {
     position: 'absolute',
