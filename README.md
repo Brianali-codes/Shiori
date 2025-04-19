@@ -1,11 +1,4 @@
-
-
-<table>
-  <tr>
-    <td>![shiori2](https://github.com/user-attachments/assets/0541dc19-f194-438f-93d3-e1ff569f8e7e)</td>
-    <td>
-      <h3>Shiori.</h3>
-      <p>Gotta Share That !</p>
-    </td>
-  </tr>
-</table>
+<div style="display: flex; align-items: center;">
+  ![shiori2](https://github.com/user-attachments/assets/f887dc60-fc8b-4d45-b743-b521ff2adc3f)
+  <p><strong>Some text</strong> next to the image with description or links.</p>
+</div>
