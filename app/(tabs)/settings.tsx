@@ -1233,8 +1233,7 @@ export default function SettingsScreen() {
                 )} />}
                 onPress={showRateApp}
               />
-              
-              <List.Item
+                  <List.Item
                 title="Contact Us"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Send feedback or report issues"
@@ -1243,6 +1242,20 @@ export default function SettingsScreen() {
                   <Message variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => router.push('/(tabs)/bug-report')}
+              />
+
+              <List.Item
+                title="Revisit Onboarding"
+                titleStyle={{ fontSize: fontSizes.body }}
+                description="Go through the app introduction again"
+                descriptionStyle={{ fontSize: fontSizes.caption }}
+                left={props => <List.Icon {...props} icon={({size, color}) => (
+                  <InfoCircle variant="Broken" size={size} color={color} />
+                )} />}
+                onPress={async () => {
+                  await AsyncStorage.setItem('hasCompletedOnboarding', '');
+                  router.replace('/onboarding');
+                }}
               />
             </Card.Content>
           </Card>

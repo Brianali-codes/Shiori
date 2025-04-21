@@ -4,7 +4,8 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ SplashScreen.preventAutoHideAsync();
 function NavigationRoot() {
   const { theme, isDark, isAmoled } = useThemeContext();
   const { fontSizes } = useFontSizeContext();
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   
   // Adjust font sizes globally
   const baseFontConfig = {
@@ -155,8 +157,12 @@ function NavigationRoot() {
       try {
         // Initialize font size service
         await initFontSize();
+        
+        // Check onboarding status
+        const onboardingStatus = await AsyncStorage.getItem('hasCompletedOnboarding');
+        setHasCompletedOnboarding(!!onboardingStatus);
       } catch (error) {
-        console.error('Failed to initialize font size service:', error);
+        console.error('Failed to initialize:', error);
       }
       
       if (fontsLoaded) {
@@ -174,11 +180,17 @@ function NavigationRoot() {
   return (
     <PaperProvider theme={paperTheme}>
       <NavigationThemeProvider value={navigationTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-        <Stack.Screen name="wallpaper" options={{ headerShown: false }} />
-      </Stack>
+        <Stack>
+          {!hasCompletedOnboarding && (
+            <Stack.Screen 
+              name="onboarding" 
+              options={{ headerShown: false }} 
+            />
+          )}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+          <Stack.Screen name="wallpaper" options={{ headerShown: false }} />
+        </Stack>
         <StatusBar style={isDark || isAmoled ? 'light' : 'dark'} />
       </NavigationThemeProvider>
     </PaperProvider>

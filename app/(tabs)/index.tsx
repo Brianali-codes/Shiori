@@ -635,6 +635,7 @@ export default function HomeScreen() {
                 style={styles.loadMoreButton}
               >
                 Load More
+                
               </Button>
             )}
           </View>
@@ -725,6 +726,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     marginTop: 8,
+    width:'100%',
   },
   collectionsGrid: {
     flexDirection: 'row',

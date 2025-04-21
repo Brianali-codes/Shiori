@@ -27,17 +27,8 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease",
-        "withoutCredentials": true,
-        "image": "latest",
-        "env": {
-          "EXPO_PUBLIC_API_URL": "https://api.wallhaven.cc",
-          "EXPO_OPTIMIZE": "true"
-        },
-        "cache": {
-          "key": "split-apks"
-        }
+        "buildType": "app-bundle",
+        "image": "latest"
       }
     },
     "test": {
