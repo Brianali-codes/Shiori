@@ -11,10 +11,13 @@ import Animated, {
   useSharedValue,
   withTiming,
   withSpring,
+  withSequence,
+  withDelay,
   interpolate,
-  Extrapolate
+  Extrapolate,
+  runOnJS
 } from 'react-native-reanimated';
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,25 +47,73 @@ type OnboardingStep = {
 
 const { width, height } = Dimensions.get('window');
 
+// Memoized animation component for better performance
+const LottieAnimation = memo(({ animationName }: { animationName: AnimationName }) => {
+  const animations = {
+    welcome: require('../assets/animations/welcome.json'),
+    search: require('../assets/animations/search.json'),
+    document: require('../assets/animations/document.json'),
+    confetti: require('../assets/animations/confetti.json')
+  };
+
+  return (
+    <LottieView
+      source={animations[animationName]}
+      autoPlay
+      loop
+      style={styles.lottie}
+    />
+  );
+});
+
+// Memoized indicator component
+const StepIndicator = memo(({ active, index, total, theme }: { 
+  active: boolean, 
+  index: number, 
+  total: number,
+  theme: any 
+}) => {
+  const width = useSharedValue(active ? 24 : 8);
+  const opacity = useSharedValue(active ? 1 : 0.5);
+  
+  useEffect(() => {
+    width.value = withSpring(active ? 24 : 8, {
+      mass: 0.5,
+      damping: 9,
+      stiffness: 100
+    });
+    opacity.value = withTiming(active ? 1 : 0.5, { duration: 300 });
+  }, [active]);
+  
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: width.value,
+      opacity: opacity.value,
+      backgroundColor: active 
+        ? theme.colors.primary 
+        : theme.dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
+    };
+  });
+  
+  return (
+    <Animated.View
+      style={[styles.indicator, animatedStyle]}
+    />
+  );
+});
+
 const OnboardingScreen = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [agreementVisible, setAgreementVisible] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
-  const slideOffset = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  const scale = useSharedValue(1);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const slideDirection = useSharedValue(1); // 1 for forward, -1 for backward
+  const contentOpacity = useSharedValue(1);
+  const contentScale = useSharedValue(1);
+  const contentTranslateX = useSharedValue(0);
+  const backgroundProgress = useSharedValue(1);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const animation = useSharedValue(0);
-
-  useEffect(() => {
-    animation.value = withTiming(1, { duration: 1000 });
-  }, [currentStep]);
-
-  const handleSkip = async () => {
-    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-    router.replace('/(tabs)');
-  };
 
   const onboardingSteps: OnboardingStep[] = [
     {
@@ -100,70 +151,103 @@ const OnboardingScreen = () => {
     }
   ];
 
-  const handleNext = async () => {
+  // Optimize with useCallback
+  const handleSkip = useCallback(async () => {
+    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    router.replace('/(tabs)');
+  }, []);
+
+  const transitionToNextStep = useCallback((nextStep: number) => {
+    setCurrentStep(nextStep);
+    setIsAnimating(false);
+    
+    // Animate background
+    backgroundProgress.value = withSequence(
+      withTiming(0.5, { duration: 200 }),
+      withTiming(1, { duration: 500 })
+    );
+    
+    // Animate content back in
+    contentOpacity.value = withTiming(1, { duration: 400 });
+    contentScale.value = withTiming(1, { duration: 400 });
+    contentTranslateX.value = withTiming(0, { duration: 400 });
+  }, [backgroundProgress, contentOpacity, contentScale, contentTranslateX]);
+
+  const handleNext = useCallback(async () => {
+    if (isAnimating) return;
+    
+    // Check for agreement screen
     if (currentStep === 2 && !agreementAccepted) {
       setAgreementVisible(true);
       return;
     }
 
+    // Check if we're on the last step
     if (currentStep < onboardingSteps.length - 1) {
-      opacity.value = withTiming(0, { duration: 300 });
-      scale.value = withTiming(0.8, { duration: 300 });
+      setIsAnimating(true);
+      slideDirection.value = 1;
       
+      // Animate content out
+      contentOpacity.value = withTiming(0, { duration: 300 });
+      contentScale.value = withTiming(0.9, { duration: 300 });
+      contentTranslateX.value = withTiming(-width * 0.2, { duration: 300 });
+      
+      // Transition to next step after animation
       setTimeout(() => {
-        setCurrentStep(prev => prev + 1);
-        opacity.value = withTiming(1, { duration: 400 });
-        scale.value = withTiming(1, { duration: 400 });
+        transitionToNextStep(currentStep + 1);
       }, 300);
     } else {
+      // Last step - complete onboarding
       await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
       router.replace('/(tabs)');
     }
-  };
+  }, [currentStep, agreementAccepted, isAnimating, onboardingSteps.length, slideDirection, contentOpacity, contentScale, contentTranslateX, transitionToNextStep]);
 
+  // Content animation style
   const animatedContentStyle = useAnimatedStyle(() => {
     return {
-      opacity: opacity.value,
+      opacity: contentOpacity.value,
       transform: [
-        { scale: scale.value }
+        { scale: contentScale.value },
+        { translateX: contentTranslateX.value }
       ]
     };
   });
 
+  // Background animation style
   const animatedBackgroundStyle = useAnimatedStyle(() => {
     return {
       opacity: interpolate(
-        animation.value,
-        [0, 1],
-        [0.3, 1],
+        backgroundProgress.value,
+        [0, 0.5, 1],
+        [1, 0.7, 1],
         Extrapolate.CLAMP
       )
     };
   });
 
-  const renderLottieAnimation = (animationName: AnimationName) => {
-    const animations = {
-      welcome: require('../assets/animations/welcome.json'),
-      search: require('../assets/animations/search.json'),
-      document: require('../assets/animations/document.json'),
-      confetti: require('../assets/animations/confetti.json')
-    };
+  // Button animation
+  const buttonScaleAnim = useSharedValue(1);
   
-    return (
-      <LottieView
-        source={animations[animationName]}
-        autoPlay
-        loop
-        style={styles.lottie}
-      />
-    );
-  };
+  const handlePressIn = useCallback(() => {
+    buttonScaleAnim.value = withTiming(0.95, { duration: 100 });
+  }, [buttonScaleAnim]);
+  
+  const handlePressOut = useCallback(() => {
+    buttonScaleAnim.value = withTiming(1, { duration: 100 });
+  }, [buttonScaleAnim]);
+  
+  const buttonAnimStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScaleAnim.value }]
+    };
+  });
 
   return (
     <View style={styles.container}>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       
-      {/* Background gradient */}
+      {/* Background gradient with animation */}
       <Animated.View style={[styles.backgroundContainer, animatedBackgroundStyle]}>
         <LinearGradient
           colors={onboardingSteps[currentStep].gradientColors}
@@ -174,11 +258,11 @@ const OnboardingScreen = () => {
         
         {/* Optional: Add subtle pattern overlay for dark mode */}
         {theme.dark && (
-          <View style={styles.patternOverlay}>
-            {/* Create a pattern using multiple small views instead of backgroundImage */}
-            {Array.from({ length: 20 }).map((_, rowIndex) => (
+          <View style={styles.patternOverlay} pointerEvents="none">
+            {/* Use a more efficient pattern for better performance */}
+            {Array.from({ length: 10 }).map((_, rowIndex) => (
               <View key={`row-${rowIndex}`} style={{ flexDirection: 'row' }}>
-                {Array.from({ length: 20 }).map((_, colIndex) => (
+                {Array.from({ length: 10 }).map((_, colIndex) => (
                   <View 
                     key={`dot-${rowIndex}-${colIndex}`} 
                     style={{
@@ -186,7 +270,7 @@ const OnboardingScreen = () => {
                       height: 2,
                       borderRadius: 1,
                       backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      margin: 9
+                      margin: 20
                     }}
                   />
                 ))}
@@ -199,7 +283,7 @@ const OnboardingScreen = () => {
       <View style={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
         {/* Skip button */}
         <Animated.View 
-          entering={FadeIn}
+          entering={FadeIn.duration(600)}
           style={styles.skipButton}
         >
           {currentStep < onboardingSteps.length - 1 && (
@@ -217,7 +301,7 @@ const OnboardingScreen = () => {
         {/* Main content */}
         <Animated.View style={[styles.mainContent, animatedContentStyle]}>
           <View style={styles.animationContainer}>
-            {renderLottieAnimation(onboardingSteps[currentStep].lottie)}
+            <LottieAnimation animationName={onboardingSteps[currentStep].lottie} />
           </View>
           
           <BlurView 
@@ -274,29 +358,26 @@ const OnboardingScreen = () => {
         <View style={styles.footer}>
           <View style={styles.indicators}>
             {onboardingSteps.map((_, index) => (
-              <Animated.View
+              <StepIndicator
                 key={index}
-                style={[
-                  styles.indicator,
-                  {
-                    width: currentStep === index ? 24 : 8,
-                    backgroundColor: currentStep === index 
-                      ? theme.colors.primary 
-                      : theme.dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'
-                  }
-                ]}
+                active={currentStep === index}
+                index={index}
+                total={onboardingSteps.length}
+                theme={theme}
               />
             ))}
           </View>
 
           <Animated.View 
-            entering={FadeInDown.delay(200)}
-            exiting={FadeOutUp}
-            style={styles.buttonContainer}
+            entering={FadeInDown.delay(200).duration(400)}
+            exiting={FadeOutUp.duration(300)}
+            style={[styles.buttonContainer, buttonAnimStyle]}
           >
             <Button
               mode="contained"
               onPress={handleNext}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
               style={[styles.button]}
               contentStyle={styles.buttonContent}
               labelStyle={{
@@ -410,6 +491,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     opacity: 0.05,
     backgroundColor: 'transparent',
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
