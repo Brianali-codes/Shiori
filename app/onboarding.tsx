@@ -30,8 +30,10 @@ import {
   Android,
   DocumentText1,
   TickCircle,
-  CloseCircle
+  CloseCircle,
+  Heart
 } from 'iconsax-react-nativejs';
+import { Platform } from 'react-native';
 
 // Define a type for the valid animation names
 type AnimationName = 'welcome' | 'search' | 'document' | 'confetti';
@@ -73,32 +75,78 @@ const StepIndicator = memo(({ active, index, total, theme }: {
   total: number,
   theme: any 
 }) => {
+  // Animation values
   const width = useSharedValue(active ? 24 : 8);
   const opacity = useSharedValue(active ? 1 : 0.5);
+  const scale = useSharedValue(active ? 1 : 0.8);
+  const translateY = useSharedValue(active ? 0 : 2);
   
   useEffect(() => {
-    width.value = withSpring(active ? 24 : 8, {
-      mass: 0.5,
-      damping: 9,
-      stiffness: 100
-    });
-    opacity.value = withTiming(active ? 1 : 0.5, { duration: 300 });
+    // Apply animations when active state changes
+    if (active) {
+      // When becoming active
+      scale.value = withSequence(
+        withTiming(1.2, { duration: 200 }),
+        withTiming(1, { duration: 150 })
+      );
+      width.value = withSpring(24, {
+        mass: 0.8,
+        damping: 8,
+        stiffness: 100,
+        overshootClamping: false,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01
+      });
+      opacity.value = withTiming(1, { duration: 250 });
+      translateY.value = withSequence(
+        withTiming(-3, { duration: 150 }),
+        withTiming(0, { duration: 150 })
+      );
+    } else {
+      // When becoming inactive
+      scale.value = withTiming(0.8, { duration: 200 });
+      width.value = withSpring(8, {
+        mass: 0.5,
+        damping: 9,
+        stiffness: 100
+      });
+      opacity.value = withTiming(0.5, { duration: 200 });
+      translateY.value = withTiming(2, { duration: 200 });
+    }
   }, [active]);
   
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      width: width.value,
-      opacity: opacity.value,
-      backgroundColor: active 
-        ? theme.colors.primary 
-        : theme.dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
-    };
-  });
-  
+  // Wrap the animated styles in a container
   return (
-    <Animated.View
-      style={[styles.indicator, animatedStyle]}
-    />
+    <View style={styles.indicatorContainer}>
+      <Animated.View
+        style={[
+          styles.indicator,
+          {
+            width: width,
+            opacity: opacity,
+            transform: [
+              { scale: scale },
+              { translateY: translateY }
+            ],
+            backgroundColor: active 
+              ? theme.colors.primary 
+              : theme.dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
+            // Fixed shadow styling
+            ...Platform.select({
+              ios: {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: active ? 2 : 0 },
+                shadowOpacity: active ? 0.5 : 0,
+                shadowRadius: 4,
+              },
+              android: {
+                elevation: active ? 2 : 0,
+              },
+            }),
+          }
+        ]}
+      />
+    </View>
   );
 });
 
@@ -107,6 +155,8 @@ const OnboardingScreen = () => {
   const [agreementVisible, setAgreementVisible] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [hapticFeedback, setHapticFeedback] = useState(true);
+  const [soundEffects, setSoundEffects] = useState(true);
   const slideDirection = useSharedValue(1); // 1 for forward, -1 for backward
   const contentOpacity = useSharedValue(1);
   const contentScale = useSharedValue(1);
@@ -114,6 +164,27 @@ const OnboardingScreen = () => {
   const backgroundProgress = useSharedValue(1);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Add a function to trigger haptic feedback (simulation)
+  const triggerHaptic = useCallback(() => {
+    if (hapticFeedback) {
+      // In a real app, you would use a library like expo-haptics:
+      // import * as Haptics from 'expo-haptics';
+      // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      console.log("Haptic feedback triggered");
+    }
+  }, [hapticFeedback]);
+
+  // Simulated sound effect function
+  const playSound = useCallback((soundName: string) => {
+    if (soundEffects) {
+      // In a real app, you would use a library like expo-av:
+      // const sound = new Audio.Sound();
+      // await sound.loadAsync(require(`../assets/sounds/${soundName}.mp3`));
+      // await sound.playAsync();
+      console.log(`Playing sound: ${soundName}`);
+    }
+  }, [soundEffects]);
 
   const onboardingSteps: OnboardingStep[] = [
     {
@@ -153,9 +224,11 @@ const OnboardingScreen = () => {
 
   // Optimize with useCallback
   const handleSkip = useCallback(async () => {
+    triggerHaptic();
+    playSound('skip');
     await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
     router.replace('/(tabs)');
-  }, []);
+  }, [triggerHaptic, playSound]);
 
   const transitionToNextStep = useCallback((nextStep: number) => {
     setCurrentStep(nextStep);
@@ -175,6 +248,9 @@ const OnboardingScreen = () => {
 
   const handleNext = useCallback(async () => {
     if (isAnimating) return;
+    
+    triggerHaptic();
+    playSound('next');
     
     // Check for agreement screen
     if (currentStep === 2 && !agreementAccepted) {
@@ -197,11 +273,34 @@ const OnboardingScreen = () => {
         transitionToNextStep(currentStep + 1);
       }, 300);
     } else {
-      // Last step - complete onboarding
+      // Last step - complete onboarding with a celebratory haptic
+      triggerHaptic();
+      playSound('success');
       await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
       router.replace('/(tabs)');
     }
-  }, [currentStep, agreementAccepted, isAnimating, onboardingSteps.length, slideDirection, contentOpacity, contentScale, contentTranslateX, transitionToNextStep]);
+  }, [currentStep, agreementAccepted, isAnimating, onboardingSteps.length, slideDirection, contentOpacity, contentScale, contentTranslateX, transitionToNextStep, triggerHaptic, playSound]);
+
+  // Handle back button functionality
+  const handleBack = useCallback(() => {
+    if (isAnimating || currentStep === 0) return;
+    
+    triggerHaptic();
+    playSound('back');
+    
+    setIsAnimating(true);
+    slideDirection.value = -1;
+    
+    // Animate content out in reverse direction
+    contentOpacity.value = withTiming(0, { duration: 300 });
+    contentScale.value = withTiming(0.9, { duration: 300 });
+    contentTranslateX.value = withTiming(width * 0.2, { duration: 300 });
+    
+    // Transition to previous step after animation
+    setTimeout(() => {
+      transitionToNextStep(currentStep - 1);
+    }, 300);
+  }, [currentStep, isAnimating, slideDirection, contentOpacity, contentScale, contentTranslateX, transitionToNextStep, triggerHaptic, playSound]);
 
   // Content animation style
   const animatedContentStyle = useAnimatedStyle(() => {
@@ -243,6 +342,11 @@ const OnboardingScreen = () => {
     };
   });
 
+  // Settings modal state
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  const canGoBack = currentStep > 0;
+
   return (
     <View style={styles.container}>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
@@ -281,35 +385,72 @@ const OnboardingScreen = () => {
       </Animated.View>
       
       <View style={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
-        {/* Skip button */}
-        <Animated.View 
-          entering={FadeIn.duration(600)}
-          style={styles.skipButton}
-        >
-          {currentStep < onboardingSteps.length - 1 && (
+        {/* Header navigation */}
+        <View style={styles.headerNav}>
+          {canGoBack && (
+            <Animated.View entering={FadeIn.duration(400)}>
+              <Button
+                mode="text"
+                onPress={handleBack}
+                textColor={theme.dark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)'}
+                labelStyle={{ fontFamily: 'Nunito-SemiBold' }}
+                icon={({ size, color }) => (
+                  <ArrowRight2 size={size} color={color} variant="Broken" style={{ transform: [{ rotate: '180deg' }] }} />
+                )}
+              >
+                Back
+              </Button>
+            </Animated.View>
+          )}
+          
+          <View style={{ flex: 1 }} />
+          
+          {/* Settings button */}
+          <Animated.View entering={FadeIn.duration(400)}>
             <Button
               mode="text"
-              onPress={handleSkip}
-              textColor={theme.dark ? theme.colors.primary : theme.colors.primary}
+              onPress={() => setSettingsVisible(true)}
+              textColor={theme.dark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.7)'}
               labelStyle={{ fontFamily: 'Nunito-SemiBold' }}
+              icon={({ size, color }) => (
+                <DocumentText1 size={size} color={color} variant="Broken" />
+              )}
             >
-              Skip
+              Settings
             </Button>
-          )}
-        </Animated.View>
-        
-        {/* Main content */}
-        <Animated.View style={[styles.mainContent, animatedContentStyle]}>
-          <View style={styles.animationContainer}>
-            <LottieAnimation animationName={onboardingSteps[currentStep].lottie} />
-          </View>
+          </Animated.View>
           
-          <BlurView 
-            intensity={theme.dark ? 20 : 40} 
-            tint={theme.dark ? 'dark' : 'light'}
-            style={styles.cardContainer}
+          {/* Skip button */}
+          {currentStep < onboardingSteps.length - 1 && (
+            <Animated.View entering={FadeIn.duration(600)}>
+              <Button
+                mode="text"
+                onPress={handleSkip}
+                textColor={theme.dark ? theme.colors.primary : theme.colors.primary}
+                labelStyle={{ fontFamily: 'Nunito-SemiBold' }}
+              >
+                Skip
+              </Button>
+            </Animated.View>
+          )}
+        </View>
+        
+        {/* Main content with fixed layout structure */}
+        <View style={styles.mainContentWrapper}>
+          <Animated.View 
+            style={[styles.mainContent, animatedContentStyle]}
+            entering={FadeIn.duration(600)}
           >
-            <View style={[styles.card, { backgroundColor: theme.dark ? 'rgba(18, 18, 18, 0.7)' : 'rgba(255, 255, 255, 0.85)' }]}>
+            {/* Animation Container */}
+            <View style={styles.animationContainer}>
+              <LottieAnimation animationName={onboardingSteps[currentStep].lottie} />
+            </View>
+            
+            {/* Text Container - Separated from animation */}
+            <View style={[
+              styles.textContainer,
+              { backgroundColor: theme.dark ? 'rgba(18, 18, 18, 0.7)' : 'rgba(255, 255, 255, 0.85)' }
+            ]}>
               <Text variant="headlineMedium" style={[styles.title, { 
                 color: theme.dark ? theme.colors.primary : theme.colors.primary,
                 fontFamily: 'Nunito-Bold'
@@ -318,7 +459,7 @@ const OnboardingScreen = () => {
               </Text>
               
               <Text variant="bodyLarge" style={[styles.description, {
-                color: theme.dark ? theme.colors.onBackground : theme.colors.onBackground,
+                color: theme.dark ? theme.colors.onSurface : theme.colors.onSurface,
                 fontFamily: 'Nunito-Regular'
               }]}>
                 {onboardingSteps[currentStep].description}
@@ -351,8 +492,8 @@ const OnboardingScreen = () => {
                 </View>
               )}
             </View>
-          </BlurView>
-        </Animated.View>
+          </Animated.View>
+        </View>
         
         {/* Footer */}
         <View style={styles.footer}>
@@ -368,36 +509,48 @@ const OnboardingScreen = () => {
             ))}
           </View>
 
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+            <Animated.View style={[styles.buttonContainer, buttonAnimStyle]}>
+              <Button
+                mode="contained"
+                onPress={handleNext}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={[styles.button]}
+                contentStyle={styles.buttonContent}
+                labelStyle={{
+                  fontSize: 16,
+                  fontFamily: 'Nunito-Bold'
+                }}
+                icon={({ size, color }) => 
+                  currentStep === onboardingSteps.length - 1 ? (
+                    <Android size={size} color={color} variant="Broken" />
+                  ) : (
+                    <ArrowRight2 size={size} color={color} variant="Broken" />
+                  )
+                }
+              >
+                {currentStep === onboardingSteps.length - 1 ? 'Get Started' : 'Next'}
+              </Button>
+            </Animated.View>
+          </Animated.View>
+          
+          {/* Progress indicator */}
           <Animated.View 
-            entering={FadeInDown.delay(200).duration(400)}
-            exiting={FadeOutUp.duration(300)}
-            style={[styles.buttonContainer, buttonAnimStyle]}
+            entering={FadeIn.delay(300).duration(500)}
+            style={styles.progressTextContainer}
           >
-            <Button
-              mode="contained"
-              onPress={handleNext}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              style={[styles.button]}
-              contentStyle={styles.buttonContent}
-              labelStyle={{
-                fontSize: 16,
-                fontFamily: 'Nunito-Bold'
-              }}
-              icon={({ size, color }) => 
-                currentStep === onboardingSteps.length - 1 ? (
-                  <Android size={size} color={color} variant="Broken" />
-                ) : (
-                  <ArrowRight2 size={size} color={color} variant="Broken" />
-                )
-              }
-            >
-              {currentStep === onboardingSteps.length - 1 ? 'Get Started' : 'Next'}
-            </Button>
+            <Text style={[styles.progressText, { 
+              color: theme.dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+              fontFamily: 'Nunito-Medium'
+            }]}>
+              {currentStep + 1} of {onboardingSteps.length}
+            </Text>
           </Animated.View>
         </View>
       </View>
 
+      {/* Terms and Conditions Modal */}
       <Portal>
         <Modal
           visible={agreementVisible}
@@ -460,6 +613,8 @@ const OnboardingScreen = () => {
                 onPress={() => {
                   setAgreementAccepted(true);
                   setAgreementVisible(false);
+                  triggerHaptic();
+                  playSound('success');
                 }}
                 style={{ backgroundColor: theme.colors.primary }}
                 labelStyle={{ fontFamily: 'Nunito-Medium' }}
@@ -473,6 +628,76 @@ const OnboardingScreen = () => {
           </Card>
         </Modal>
       </Portal>
+      
+      {/* Settings Modal */}
+      <Portal>
+        <Modal
+          visible={settingsVisible}
+          onDismiss={() => setSettingsVisible(false)}
+          contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.elevation.level3 }]}
+        >
+          <Card style={styles.modalCard}>
+            <Card.Title 
+              title="Settings" 
+              titleStyle={{ fontFamily: 'Nunito-Bold' }}
+            />
+            <Card.Content>
+              <View style={styles.settingsRow}>
+                <Text style={{ 
+                  fontFamily: 'Nunito-Medium',
+                  color: theme.colors.onSurface
+                }}>Haptic Feedback</Text>
+                <Button
+                  mode={hapticFeedback ? "contained" : "outlined"}
+                  onPress={() => setHapticFeedback(!hapticFeedback)}
+                  style={[styles.toggleButton, hapticFeedback ? { backgroundColor: theme.colors.primary } : {}]}
+                  labelStyle={{ fontFamily: 'Nunito-Medium' }}
+                >
+                  {hapticFeedback ? 'On' : 'Off'}
+                </Button>
+              </View>
+              
+              <View style={styles.settingsRow}>
+                <Text style={{ 
+                  fontFamily: 'Nunito-Medium',
+                  color: theme.colors.onSurface
+                }}>Sound Effects</Text>
+                <Button
+                  mode={soundEffects ? "contained" : "outlined"}
+                  onPress={() => setSoundEffects(!soundEffects)}
+                  style={[styles.toggleButton, soundEffects ? { backgroundColor: theme.colors.primary } : {}]}
+                  labelStyle={{ fontFamily: 'Nunito-Medium' }}
+                >
+                  {soundEffects ? 'On' : 'Off'}
+                </Button>
+              </View>
+              
+              <View style={styles.settingsInfo}>
+                <Heart size={18} color={theme.colors.primary} variant="Broken" />
+                <Text style={{ 
+                  fontFamily: 'Nunito-Regular',
+                  color: theme.colors.onSurfaceVariant,
+                  fontSize: 14,
+                  marginLeft: 8,
+                  flex: 1
+                }}>
+                  Settings will be applied to your entire experience with Shiori
+                </Text>
+              </View>
+            </Card.Content>
+            <Card.Actions style={styles.modalActions}>
+              <Button 
+                mode="contained"
+                onPress={() => setSettingsVisible(false)}
+                style={{ backgroundColor: theme.colors.primary }}
+                labelStyle={{ fontFamily: 'Nunito-Medium' }}
+              >
+                Done
+              </Button>
+            </Card.Actions>
+          </Card>
+        </Modal>
+      </Portal>
     </View>
   );
 };
@@ -480,6 +705,14 @@ const OnboardingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  indicatorContainer: {
+    padding: 4,
+  },
+  indicator: {
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -498,56 +731,63 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
-  skipButton: {
-    alignSelf: 'flex-end',
-    marginRight: 24,
-    marginTop: 8,
+  headerNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  mainContentWrapper: {
+    flex: 1,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
   },
   mainContent: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'space-between',
   },
   animationContainer: {
+    height: height * 0.30, // Slightly reduced height
+    width: width * 0.8,
     alignItems: 'center',
     justifyContent: 'center',
-    height: height * 0.35,
-    width: width * 0.8,
-    marginBottom: 32,
+    marginBottom: 20, // Add space between animation and text
   },
   lottie: {
     width: '100%',
     height: '100%',
   },
-  cardContainer: {
-    borderRadius: 24,
-    overflow: 'hidden',
+  textContainer: {
     width: '100%',
-  },
-  card: {
-    padding: 28,
-    borderRadius: 25,
+    padding: 20,
+    borderRadius: 24,
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: '#000000', // Solid black
+    ...Platform.select({
+      ios: {
+        // Keep iOS shadow if you want (remove if not needed)
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+      },
+      android: {
+        // No elevation or shadow on Android
+        elevation: 0,
+      },
+    }),
   },
   title: {
     textAlign: 'center',
     marginBottom: 16,
-    fontSize: 28,
+    fontSize: 16,
   },
   description: {
     textAlign: 'center',
-    maxWidth: width * 0.85,
-    lineHeight: 26,
-    marginBottom: 16,
+    fontSize: 12,
+    lineHeight: 24,
+    marginBottom: 8,
+    paddingHorizontal: 8,
   },
   termsButton: {
     marginTop: 16,
@@ -568,16 +808,12 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 24,
     paddingBottom: 16,
-    gap: 32,
+    gap: 22,
   },
   indicators: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
-  },
-  indicator: {
-    height: 8,
-    borderRadius: 4,
   },
   buttonContainer: {
     alignItems: 'center',
@@ -585,11 +821,28 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: 20,
     width: '80%',
-    elevation: 4,
+    ...Platform.select({
+      android: {
+        elevation: 4,
+      },
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+    }),
   },
   buttonContent: {
     height: 56,
     flexDirection: 'row-reverse',
+  },
+  progressTextContainer: {
+    alignItems: 'center',
+    marginTop: -8,
+  },
+  progressText: {
+    fontSize: 14,
   },
   modal: {
     margin: 20,
@@ -608,6 +861,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150, 150, 150, 0.2)',
+  },
+  toggleButton: {
+    borderRadius: 20,
+    minWidth: 80,
+  },
+  settingsInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: 'rgba(150, 150, 150, 0.1)',
+    borderRadius: 12,
   },
 });
 

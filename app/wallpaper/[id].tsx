@@ -1,5 +1,4 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Image as Image1 } from 'iconsax-react-nativejs';
 import React, { useEffect, useState, useRef } from 'react';
 import { Image, StyleSheet, View, Dimensions, ActivityIndicator, TouchableOpacity, Share, Animated, Platform, Alert, Linking, ToastAndroid } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -15,9 +14,10 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft, Back, ArrowDown2, ArrowCircleDown2 } from 'iconsax-react-nativejs';
+import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft, Back, ArrowDown2, Personalcard, ArrowCircleDown2, Category, Star1, Eye, DocumentUpload } from 'iconsax-react-nativejs';
 import NetInfo from '@react-native-community/netinfo';
 import { Stack } from 'expo-router';
+import { Image as Image1 } from 'iconsax-react-nativejs';
 
 export const options = {
   headerShown: false,
@@ -454,11 +454,12 @@ export default function WallpaperScreen() {
             <Surface style={styles.infoCard}>
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
-                  <Avatar.Icon 
-                    size={32}
-                    icon={props => <IconSymbol name="photo" size={18} color={props.color} />}
-                    style={styles.metaIcon}
-                  />
+                    <Image1
+                      size={22}
+                      color="#FFFFFF"
+                      variant="Broken"
+                      style={styles.metaIcon}
+                    />
                   <View>
                     <Text style={styles.metaLabel}>RESOLUTION</Text>
                     <Text style={styles.resolutionText}>{wallpaper.resolution}</Text>
@@ -466,11 +467,12 @@ export default function WallpaperScreen() {
                 </View>
                 
                 <View style={styles.metaItem}>
-                  <Avatar.Icon 
-                    size={32}
-                    icon={props => <IconSymbol name={wallpaper.category === 'anime' ? 'sparkles' : (wallpaper.category === 'people' ? 'person' : 'square.grid.2x2')} size={18} color={props.color} />}
-                    style={styles.metaIcon}
-                  />
+                    <Category
+                      size={22}
+                      color="#FFFFFF"
+                      variant="Broken"
+                      style={styles.metaIcon}
+                    />
                   <View>
                     <Text style={styles.metaLabel}>CATEGORY</Text>
                     <Text style={styles.categoryText}>
@@ -480,11 +482,12 @@ export default function WallpaperScreen() {
                 </View>
                 
                 <View style={styles.metaItem}>
-                  <Avatar.Icon 
-                    size={32}
-                    icon={props => <IconSymbol name={wallpaper.purity === 'sfw' ? 'checkmark.shield' : 'exclamationmark.triangle'} size={18} color={props.color} />}
-                    style={styles.metaIcon}
-                  />
+                  <Star1
+                      size={22}
+                      color="#FFFFFF"
+                      variant="Broken"
+                      style={styles.metaIcon}
+                    />
                   <View>
                     <Text style={styles.metaLabel}>PURITY</Text>
                     <Text style={styles.purityText}>
@@ -498,11 +501,12 @@ export default function WallpaperScreen() {
               
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
-                  <Avatar.Icon 
-                    size={32}
-                    icon={props => <IconSymbol name="heart" size={18} color={props.color} />}
-                    style={styles.metaIcon}
-                  />
+                <Heart
+                      size={22}
+                      color="#FFFFFF"
+                      variant="Broken"
+                      style={styles.metaIcon}
+                    />
                   <View>
                     <Text style={styles.metaLabel}>FAVORITES</Text>
                     <Text style={styles.favoritesText}>{wallpaper.favorites}</Text>
@@ -510,11 +514,12 @@ export default function WallpaperScreen() {
                 </View>
                 
                 <View style={styles.metaItem}>
-                  <Avatar.Icon 
-                    size={32}
-                    icon={props => <IconSymbol name="eye" size={18} color={props.color} />}
-                    style={styles.metaIcon}
-                  />
+                  <Eye
+                      size={22}
+                      color="#FFFFFF"
+                      variant="Broken"
+                      style={styles.metaIcon}
+                    />
                   <View>
                     <Text style={styles.metaLabel}>VIEWS</Text>
                     <Text style={styles.viewsText}>{wallpaper.views}</Text>
@@ -523,9 +528,10 @@ export default function WallpaperScreen() {
                 
                 {wallpaper.uploader && (
                   <View style={styles.metaItem}>
-                    <Avatar.Icon 
-                      size={32}
-                      icon={props => <IconSymbol name="person" size={18} color={props.color} />}
+                    <DocumentUpload
+                      size={22}
+                      color="#FFFFFF"
+                      variant="Broken"
                       style={styles.metaIcon}
                     />
                     <View>

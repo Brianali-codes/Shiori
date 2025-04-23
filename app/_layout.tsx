@@ -188,7 +188,7 @@ function NavigationRoot() {
             />
           )}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
           <Stack.Screen name="wallpaper" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style={isDark || isAmoled ? 'light' : 'dark'} />

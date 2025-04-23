@@ -447,40 +447,78 @@ export default function HomeScreen() {
           }}
         />
         
-          <View style={styles.searchContainer}>
-            <SearchNormal1 size={20} color={theme.colors.primary} variant="Broken" style={styles.searchIcon} />
-            <Searchbar
-              placeholder="Search wallpapers..."
-              onChangeText={setSearchQuery}
-              value={searchQuery}
-              style={styles.searchBar}
-              icon={() => null}
-            />
-          </View>
+        {/* Updated searchContainer to match explore.tsx */}
+        <View style={styles.searchContainer}>
+          <SearchNormal1 size={20} color={theme.colors.primary} variant="Broken" style={styles.searchIcon} />
+          <Searchbar
+            placeholder="Search wallpapers..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+            icon={() => null}
+          />
+        </View>
 
-        
-
+        {/* Updated filterContainer to match explore.tsx */}
         <View style={styles.filterContainer}>
+          <View style={styles.filterHeader}>
+            <Sort size={18} color={theme.colors.primary} variant="Broken" />
+            <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+              Categories
+            </Text>
+          </View>
+          
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
             {categories.map((category) => (
               <Chip
                 key={category.id}
                 selected={selectedCategory === category.id}
                 onPress={() => setSelectedCategory(category.id)}
-                style={styles.categoryChip}
+                style={[
+                  styles.categoryChip,
+                  selectedCategory === category.id && { 
+                    backgroundColor: theme.colors.primaryContainer,
+                    borderColor: theme.colors.primary
+                  }
+                ]}
+                textStyle={[
+                  selectedCategory === category.id && { 
+                    color: theme.colors.primary,
+                    fontFamily: 'Nunito-Bold'
+                  }
+                ]}
               >
                 {category.label}
               </Chip>
             ))}
           </ScrollView>
 
+          <View style={styles.filterHeader}>
+            <Filter size={18} color={theme.colors.primary} variant="Broken" />
+            <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+              Content
+            </Text>
+          </View>
+          
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
             {purityLevels.map((purity) => (
               <Chip
                 key={purity.id}
                 selected={selectedPurity === purity.id}
                 onPress={() => setSelectedPurity(purity.id)}
-                style={styles.purityChip}
+                style={[
+                  styles.purityChip,
+                  selectedPurity === purity.id && { 
+                    backgroundColor: theme.colors.primaryContainer,
+                    borderColor: theme.colors.primary
+                  }
+                ]}
+                textStyle={[
+                  selectedPurity === purity.id && { 
+                    color: theme.colors.primary,
+                    fontFamily: 'Nunito-Bold'
+                  }
+                ]}
               >
                 {purity.label}
               </Chip>
@@ -490,7 +528,7 @@ export default function HomeScreen() {
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <View style={styles.filterHeader}>
+            <View style={styles.filterHeader2}>
               <ArchiveTick size={18} color={theme.colors.primary} variant="Broken" />
               <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
             </View>
@@ -519,7 +557,7 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-            <View style={styles.filterHeader}>
+            <View style={styles.filterHeader2}>
               <Star size={18} color={theme.colors.primary} variant="Broken" />
               <Text variant="headlineSmall" style={styles.sectionTitle}>Popular Categories</Text>
             </View>
@@ -548,7 +586,7 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-            <View style={styles.filterHeader}>
+            <View style={styles.filterHeader2}>
               <Clock size={18} color={theme.colors.primary} variant="Broken" />
               <Text variant="headlineSmall" style={styles.sectionTitle}>Latest Additions</Text>
             </View>
@@ -577,7 +615,7 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-            <View style={styles.filterHeader}>
+            <View style={styles.filterHeader2}>
               <Like1 size={18} color={theme.colors.primary} variant="Broken" />
               <Text variant="headlineSmall" style={styles.sectionTitle}>Top Rated</Text>
             </View>
@@ -606,7 +644,7 @@ export default function HomeScreen() {
           
           <View style={styles.section}>
             <View style={styles.header}>
-              <View style={styles.filterHeader}>
+              <View style={styles.filterHeader2}>
                 <More2 size={18} color={theme.colors.primary} variant="Broken" />
                 <Text variant="headlineSmall" style={styles.sectionTitle}>More Wallpapers</Text>
               </View>
@@ -648,12 +686,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
   headerTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h2,
@@ -669,11 +701,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h3,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 35,
-    zIndex: 1,
   },
   featuredList: {
     paddingLeft: 16,
@@ -720,13 +747,6 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginTop: 16,
     marginBottom: 12,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
-    width:'100%',
   },
   collectionsGrid: {
     flexDirection: 'row',
@@ -817,25 +837,6 @@ const styles = StyleSheet.create({
   footer: {
     height: 10,
   },
-  searchBar: {
-    margin: 16,
-    borderRadius: 25,
-  },
-  filterContainer: {
-    paddingHorizontal: 16,
-  },
-  categoryScroll: {
-    marginBottom: 8,
-  },
-  purityScroll: {
-    marginBottom: 16,
-  },
-  categoryChip: {
-    marginRight: 8,
-  },
-  purityChip: {
-    marginRight: 8,
-  },
   wallpaperCard: {
     flex: 1,
     margin: 8,
@@ -850,12 +851,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-  },
-  filterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap:5,
-    marginBottom: 8,
   },
   moreWallpapersGrid: {
     flexDirection: 'row',
@@ -912,4 +907,62 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     width:'50%',
   },
+
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 26,
+    zIndex: 1,
+  },
+  searchBar: {
+    flex: 1,
+    elevation: 2,
+    borderRadius: 22,
+    height: 50,
+  },
+  filterContainer: {
+    marginBottom: 10,
+    paddingHorizontal: 16,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  filterHeader2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap:7,
+  },
+  filterTitle: {
+    marginLeft: 8,
+  },
+  categoryScroll: {
+    marginBottom: 16,
+  },
+  purityScroll: {
+    marginBottom: 16,
+  },
+  categoryChip: {
+    marginRight: 8,
+  },
+  purityChip: {
+    marginRight: 8,
+  },
+
+
+
 } as const);
