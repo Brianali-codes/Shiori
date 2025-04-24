@@ -905,6 +905,7 @@ const styles = StyleSheet.create({
     alignSelf:'center',
     marginTop: 8,
     marginBottom: 10,
+    fontFamily: 'Nunito-Bold',
     width:'50%',
   },
 
