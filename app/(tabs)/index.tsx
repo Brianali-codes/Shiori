@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
-import { Heart, ArrowDown2, InfoCircle, SearchNormal1,ArchiveTick, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2, Star, Clock, Like1, More2, Eye, HeartCircle, } from 'iconsax-react-nativejs';
+import { Heart, ArrowDown2, InfoCircle, SearchNormal1,ArchiveTick, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2, Star, Clock, Like1, More2, Eye, HeartCircle, Share, } from 'iconsax-react-nativejs';
 import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge, Searchbar, IconButton } from 'react-native-paper';
 import { Image as Image1 } from 'iconsax-react-nativejs';
 import { Stack, useRouter } from 'expo-router';
@@ -14,6 +14,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontSizes } from '@/constants/FontSizes';
 import * as Haptics from 'expo-haptics';
+import { Avatar } from 'react-native-paper';
+
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -120,6 +122,9 @@ export default function HomeScreen() {
   const [selectedPurity, setSelectedPurity] = useState('sfw');
   const [showNsfwContent, setShowNsfwContent] = useState(false);
 
+
+  const [showFilter, setShowFilter] = useState(false);
+
   const handleSearch = () => {
     if (searchQuery.trim()) {
       router.push({
@@ -132,6 +137,12 @@ export default function HomeScreen() {
       });
     }
   };
+  
+  const handleShowFilter = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowFilter(!showFilter);
+  };
+  
 
   const categories = [
     { id: 'all', label: 'All' },
@@ -448,17 +459,32 @@ export default function HomeScreen() {
         />
         
         {/* Updated searchContainer to match explore.tsx */}
-        <View style={styles.searchContainer}>
-          <SearchNormal1 size={20} color={theme.colors.primary} variant="Broken" style={styles.searchIcon} />
-          <Searchbar
-            placeholder="Search wallpapers..."
-            onChangeText={setSearchQuery}
-            value={searchQuery}
-            style={styles.searchBar}
-            icon={() => null}
-          />
-        </View>
+       <View style={styles.headerContainer}>
+          <View style={styles.headerRow}>
+            <Avatar.Image 
+              size={38} 
+              source={require('@/assets/images/shiori.png')} 
+            />
+            <View style={styles.headerCol}>
+              <Text style={styles.appTitle}>Shiori.</Text>
+              <Text style={styles.subtitle}>Discover Beautiful Wallpapers</Text>
+            </View>     
+          </View>
 
+
+          <View style={styles.glassIcons}>
+            <TouchableOpacity onPress={() => {}}>  
+                <Share size={20} color="#FFFFFF" variant="Broken" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/explore')}>
+                <SearchNormal1 size={20} color="#FFFFFF" variant="Broken" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleShowFilter}>
+                <Filter size={20} color="#FFFFFF" variant="Broken" />
+              </TouchableOpacity>
+          </View> 
+
+        </View>
         {/* Updated filterContainer to match explore.tsx */}
         <View style={styles.filterContainer}>
           <View style={styles.filterHeader}>
@@ -492,39 +518,49 @@ export default function HomeScreen() {
               </Chip>
             ))}
           </ScrollView>
-
-          <View style={styles.filterHeader}>
-            <Filter size={18} color={theme.colors.primary} variant="Broken" />
-            <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
-              Content
-            </Text>
-          </View>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
-            {purityLevels.map((purity) => (
-              <Chip
-                key={purity.id}
-                selected={selectedPurity === purity.id}
-                onPress={() => setSelectedPurity(purity.id)}
-                style={[
-                  styles.purityChip,
-                  selectedPurity === purity.id && { 
-                    backgroundColor: theme.colors.primaryContainer,
-                    borderColor: theme.colors.primary
-                  }
-                ]}
-                textStyle={[
-                  selectedPurity === purity.id && { 
-                    color: theme.colors.primary,
-                    fontFamily: 'Nunito-Bold'
-                  }
-                ]}
-              >
-                {purity.label}
-              </Chip>
-            ))}
-          </ScrollView>
         </View>
+
+        {showFilter && (
+          <View style={styles.openFilter}>
+            <View style={styles.filterHeader}>
+              <Filter size={18} color={theme.colors.primary} variant="Broken" />
+              <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                Content
+              </Text>
+            </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
+              {purityLevels.map((purity) => (
+                <Chip
+                  key={purity.id}
+                  selected={selectedPurity === purity.id}
+                  onPress={() => setSelectedPurity(purity.id)}
+                  style={[
+                    styles.purityChip,
+                    selectedPurity === purity.id && { 
+                      backgroundColor: theme.colors.primaryContainer,
+                      borderColor: theme.colors.primary
+                    }
+                  ]}
+                  textStyle={[
+                    selectedPurity === purity.id && { 
+                      color: theme.colors.primary,
+                      fontFamily: 'Nunito-Bold'
+                    }
+                  ]}
+                >
+                  {purity.label}
+                </Chip>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+        
+
+
+
+
+
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
@@ -554,36 +590,6 @@ export default function HomeScreen() {
             decelerationRate="fast"
             snapToAlignment="center"
           />
-          
-          <View style={styles.section}>
-            <View style={styles.header}>
-            <View style={styles.filterHeader2}>
-              <Star size={18} color={theme.colors.primary} variant="Broken" />
-              <Text variant="headlineSmall" style={styles.sectionTitle}>Popular Categories</Text>
-            </View>
-            </View>
-            <View style={styles.categoriesGrid}>
-              {popularCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.categoryCard}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({
-                      pathname: '/(tabs)/explore',
-                      params: { query: category.searchQuery }
-                    });
-                  }}
-                >
-                  <View style={styles.categoryIconContainer}>
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                  </View>
-                  <Text variant="labelMedium" style={styles.categoryName}>{category.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          
           <View style={styles.section}>
             <View style={styles.header}>
             <View style={styles.filterHeader2}>
@@ -701,6 +707,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h3,
+  },
+  openFilter:{
+    display:'flex',
+    marginLeft:16,
+    marginTop:-10,
+    marginBottom:-5,
   },
   featuredList: {
     paddingLeft: 16,
@@ -909,18 +921,38 @@ const styles = StyleSheet.create({
     width:'50%',
   },
 
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent:'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerCol: {
+    flexDirection: 'column',
+  },
+  appTitle: {
+    fontFamily: 'Nunito-Bold',
+    fontSize: FontSizes.h4,
+    color: '#777',
+  },
+  subtitle: {
+    fontFamily: 'Nunito-Light',
+    fontSize: FontSizes.caption,
+    color: '#777',
+    marginTop: 2,
+  },
   container: {
     flex: 1,
   },
   scrollView: {
     flex: 1,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
-    paddingHorizontal: 12,
   },
   searchIcon: {
     position: 'absolute',
@@ -941,6 +973,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  avatar: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#f5f5f5', // Light gray background
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  searchInputContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  glassIcons: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    padding: 12,
+    backdropFilter: 'blur(10px)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    color: '#888', // Medium gray text
+    fontFamily: 'Nunito-Medium',
+    fontSize: FontSizes.body,
   },
   filterHeader2: {
     flexDirection: 'row',

@@ -14,7 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft, Back, ArrowDown2, Personalcard, ArrowCircleDown2, Category, Star1, Eye, DocumentUpload } from 'iconsax-react-nativejs';
+import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft, Back, ArrowDown2, Personalcard, ArrowCircleDown2, Category, Star1, Eye, DocumentUpload, ArrowLeft2 } from 'iconsax-react-nativejs';
 import NetInfo from '@react-native-community/netinfo';
 import { Stack } from 'expo-router';
 import { Image as Image1 } from 'iconsax-react-nativejs';
@@ -380,7 +380,7 @@ export default function WallpaperScreen() {
       <View style={{ position: 'absolute', top: 40, left: 12, zIndex: 10 }}>
         <IconButton
           icon={() => (
-            <Back
+            <ArrowLeft2
               size={24} 
               color="white" 
               variant="Broken"
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   detailItem: {
-    width: '50%',
+    width: '25%',
     padding: 8,
   },
   detailLabel: {
@@ -871,8 +871,8 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   colorBox: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
     margin: 4,
     borderRadius: 8,
     justifyContent: 'center',
