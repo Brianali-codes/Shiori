@@ -21,6 +21,14 @@ Shiori is a sleek, Material Design-inspired wallpaper application that allows us
 - **Dark Mode**: Full support for light and dark themes
 - **Customizable Settings**: Personalize your experience
 
+## Screenshots
+
+![1](https://github.com/user-attachments/assets/76121a13-087a-401e-8a55-93dd4d491586)
+![2](https://github.com/user-attachments/assets/cfdf9f07-2f4d-4d9b-a918-1cfa46b43b46)
+![3](https://github.com/user-attachments/assets/4e464688-bbc9-4ec2-8085-0265831fd19c)
+![4](https://github.com/user-attachments/assets/3c011f91-d3cf-4fe1-a15e-8eb5b0559056)
+![5](https://github.com/user-attachments/assets/1551b589-aa34-4a0f-accf-c5fcf3231841)
+
 ## App Structure
 
 ```
