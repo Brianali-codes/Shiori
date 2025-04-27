@@ -23,11 +23,13 @@ Shiori is a sleek, Material Design-inspired wallpaper application that allows us
 
 ## Screenshots
 
-![1](https://github.com/user-attachments/assets/76121a13-087a-401e-8a55-93dd4d491586)
-![2](https://github.com/user-attachments/assets/cfdf9f07-2f4d-4d9b-a918-1cfa46b43b46)
-![3](https://github.com/user-attachments/assets/4e464688-bbc9-4ec2-8085-0265831fd19c)
-![4](https://github.com/user-attachments/assets/3c011f91-d3cf-4fe1-a15e-8eb5b0559056)
-![5](https://github.com/user-attachments/assets/1551b589-aa34-4a0f-accf-c5fcf3231841)
+![1](https://github.com/user-attachments/assets/c74ce523-c15c-4324-bbe2-6c6059e6b677)
+![2](https://github.com/user-attachments/assets/44728fcb-bcca-41e9-923d-cd3a840ffafd)
+![3](https://github.com/user-attachments/assets/cbf4a9fb-b010-482b-85d2-98d9bca77426)
+![4](https://github.com/user-attachments/assets/a464fd50-f3c9-4726-b86b-c1671d518aa1)
+![5](https://github.com/user-attachments/assets/0bb26229-c0b1-49bc-ac29-7e945ae65ec6)
+
+
 
 ## App Structure
 
