@@ -123,7 +123,7 @@ export default function BugReportScreen() {
           <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
             <Text 
               variant="headlineSmall" 
-              style={[styles.headerText, { color: colors.text, fontFamily: 'Nunito-Bold', fontSize: FontSizes.h2 }]}
+              style={[styles.headerText, { color: colors.text, fontFamily: 'Nunito-Bold', fontSize: FontSizes.h3 }]}
             >
               Report a Bug
             </Text>

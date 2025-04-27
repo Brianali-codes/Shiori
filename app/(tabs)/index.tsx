@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontSizes } from '@/constants/FontSizes';
 import * as Haptics from 'expo-haptics';
 import { Avatar } from 'react-native-paper';
-
+import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
@@ -139,7 +139,6 @@ export default function HomeScreen() {
   };
   
   const handleShowFilter = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowFilter(!showFilter);
   };
   
@@ -462,25 +461,25 @@ export default function HomeScreen() {
        <View style={styles.headerContainer}>
           <View style={styles.headerRow}>
             <Avatar.Image 
-              size={38} 
-              source={require('@/assets/images/shiori.png')} 
+              size={38}
+              source={require('@/assets/images/shiori.png')}
             />
             <View style={styles.headerCol}>
-              <Text style={styles.appTitle}>Shiori.</Text>
-              <Text style={styles.subtitle}>Discover Beautiful Wallpapers</Text>
+              <Text style={styles.appTitle}>Shiori. <Text style={styles.subtitle}>v1.0.0.</Text></Text>
+              <Text style={styles.subtitle}>Discover Beautiful Wallpapers.</Text>
             </View>     
           </View>
 
 
           <View style={styles.glassIcons}>
             <TouchableOpacity onPress={() => {}}>  
-                <Share size={20} color="#FFFFFF" variant="Broken" />
+                <Share size={20} color="#777" variant="Broken" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push('/explore')}>
-                <SearchNormal1 size={20} color="#FFFFFF" variant="Broken" />
+                <SearchNormal1 size={20} color="#777" variant="Broken" />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleShowFilter}>
-                <Filter size={20} color="#FFFFFF" variant="Broken" />
+                <Filter size={20} color="#777" variant="Broken" />
               </TouchableOpacity>
           </View> 
 
