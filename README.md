@@ -20,6 +20,7 @@ Shiori is a sleek, Material Design-inspired wallpaper application that allows us
 - **Download Manager**: Download wallpapers to your device
 - **Dark Mode**: Full support for light and dark themes
 - **Customizable Settings**: Personalize your experience
+- **Beautiful icons and UI**: Experience simplicity an style all in one package.
 
 ## Screenshots
 
@@ -158,7 +159,7 @@ API_BASE_URL=https://wallhaven.cc/api/v1
 ```
 
 ## Contributing
-
+Special Thanks to @rendinjast for the iconsax library used for the icons.
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
