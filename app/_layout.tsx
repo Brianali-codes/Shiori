@@ -17,7 +17,7 @@ import { initFontSize } from '../services/fontSizeService';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 // Current app version - update this when you want to show onboarding again after an update
-const CURRENT_APP_VERSION = '1.0.0'; // Replace with your actual version
+const CURRENT_APP_VERSION = '1.0.1'; // Replace with your actual version
 const ONBOARDING_VERSION_KEY = 'onboardingCompletedForVersion';
 function NavigationRoot() {
   const { theme, isDark, isAmoled } = useThemeContext();
@@ -108,16 +108,48 @@ function NavigationRoot() {
     async function prepare() {
       try {
         await initFontSize();
+
+        // Test AsyncStorage functionality
+        console.log('Testing AsyncStorage functionality...');
+        const testKey = 'asyncStorageTest';
+        const testValue = 'test-' + Date.now();
         
+        try {
+          await AsyncStorage.setItem(testKey, testValue);
+          const retrievedValue = await AsyncStorage.getItem(testKey);
+          
+          if (retrievedValue === testValue) {
+            console.log('AsyncStorage test successful');
+          } else {
+            console.error('AsyncStorage test failed - value mismatch');
+          }
+        } catch (asyncError) {
+          console.error('AsyncStorage test failed with error:', asyncError);
+        }
+
+        // Force show onboarding for testing
+        const forceShowOnboarding = true; // Set to true to force onboarding
+
         // Check if onboarding should be shown
         const completedVersion = await AsyncStorage.getItem(ONBOARDING_VERSION_KEY);
-        
+        console.log('Onboarding check - Completed version:', completedVersion);
+        console.log('Current app version:', CURRENT_APP_VERSION);
+
         // Show onboarding if:
         // 1. No version is stored (first install)
         // 2. Stored version is different from current version (app update)
-        if (!completedVersion || completedVersion !== CURRENT_APP_VERSION) {
+        // 3. Force show onboarding is true
+        if (forceShowOnboarding || !completedVersion || completedVersion !== CURRENT_APP_VERSION) {
+          console.log('Should show onboarding: true');
           setShouldShowOnboarding(true);
+          
+          // For debugging - if we're forcing onboarding, clear the stored version
+          if (forceShowOnboarding) {
+            await AsyncStorage.removeItem(ONBOARDING_VERSION_KEY);
+            console.log('Forced onboarding - cleared stored version');
+          }
         } else {
+          console.log('Should show onboarding: false');
           setShouldShowOnboarding(false);
         }
       } catch (error) {
@@ -125,7 +157,7 @@ function NavigationRoot() {
         // Default to showing onboarding in case of error
         setShouldShowOnboarding(true);
       }
-      
+
       if (fontsLoaded) {
         await SplashScreen.hideAsync();
       }
@@ -136,12 +168,30 @@ function NavigationRoot() {
   // Mark onboarding as completed for this version
   const completeOnboarding = async () => {
     try {
+      console.log('Completing onboarding from _layout - Setting key:', ONBOARDING_VERSION_KEY);
+      console.log('Completing onboarding from _layout - Setting value:', CURRENT_APP_VERSION);
       await AsyncStorage.setItem(ONBOARDING_VERSION_KEY, CURRENT_APP_VERSION);
+      console.log('Completing onboarding from _layout - AsyncStorage set successfully');
       setShouldShowOnboarding(false);
     } catch (error) {
       console.error('Failed to save onboarding status:', error);
     }
   };
+
+  // For testing - reset onboarding status
+  const resetOnboarding = async () => {
+    try {
+      console.log('Resetting onboarding status...');
+      await AsyncStorage.removeItem(ONBOARDING_VERSION_KEY);
+      console.log('Onboarding status reset successfully');
+      // Force reload the app
+      setShouldShowOnboarding(true);
+    } catch (error) {
+      console.error('Failed to reset onboarding status:', error);
+    }
+  };
+
+
 
   if (!fontsLoaded || shouldShowOnboarding === null) return null;
 
@@ -150,14 +200,17 @@ function NavigationRoot() {
       <NavigationThemeProvider value={navigationTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           {shouldShowOnboarding ? (
-            <Stack.Screen 
-              name="onboarding" 
-              options={{ gestureEnabled: false }} 
-              initialParams={{ completeOnboarding }} 
+            <Stack.Screen
+              name="onboarding"
+              options={{ gestureEnabled: false }}
+              initialParams={{ completeOnboarding }}
             />
-          ) : null}
-          {/* You don't need to explicitly add (tabs) or wallpaper — 
-              expo-router automatically picks them via file system */}
+          ) : (
+            <>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              {/* Add other screens that should be available after onboarding */}
+            </>
+          )}
         </Stack>
         <StatusBar style={isDark || isAmoled ? 'light' : 'dark'} />
       </NavigationThemeProvider>

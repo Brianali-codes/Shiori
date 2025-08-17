@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
-import { Heart, ArrowDown2, InfoCircle, SearchNormal1,ArchiveTick, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2, Star, Clock, Like1, More2, Eye, HeartCircle, Share, } from 'iconsax-react-nativejs';
+import { Heart, ArrowDown2, InfoCircle, SearchNormal1, ArchiveTick, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2, Star, Clock, Like1, More2, Eye, HeartCircle, Share, Blur, } from 'iconsax-react-nativejs';
 import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge, Searchbar, IconButton } from 'react-native-paper';
 import { Image as Image1 } from 'iconsax-react-nativejs';
 import { Stack, useRouter } from 'expo-router';
@@ -16,51 +16,57 @@ import { FontSizes } from '@/constants/FontSizes';
 import * as Haptics from 'expo-haptics';
 import { Avatar } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
+import LottieView from "lottie-react-native";
+
+
+
+
+
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;
 
 const featuredCollections = [
-  { 
-    id: '1', 
-    title: 'Nature', 
-    icon: 'leaf.fill', 
-    color: '#4CAF50', 
+  {
+    id: '1',
+    title: 'Nature',
+    icon: 'leaf.fill',
+    color: '#4CAF50',
     query: 'nature landscape forest mountain',
   },
-  { 
-    id: '2', 
-    title: 'Abstract', 
-    icon: 'scribble', 
-    color: '#9C27B0', 
+  {
+    id: '2',
+    title: 'Abstract',
+    icon: 'scribble',
+    color: '#9C27B0',
     query: 'abstract art pattern geometric',
   },
-  { 
-    id: '3', 
-    title: 'Minimal', 
-    icon: 'square.fill', 
-    color: '#607D8B', 
+  {
+    id: '3',
+    title: 'Minimal',
+    icon: 'square.fill',
+    color: '#607D8B',
     query: 'minimal simple clean',
   },
-  { 
-    id: '4', 
-    title: 'Art', 
-    icon: 'paintpalette.fill', 
-    color: '#FF9800', 
+  {
+    id: '4',
+    title: 'Art',
+    icon: 'paintpalette.fill',
+    color: '#FF9800',
     query: 'art painting illustration digital art',
   },
-  { 
-    id: '5', 
-    title: 'Dark', 
-    icon: 'moon.fill', 
-    color: '#212121', 
+  {
+    id: '5',
+    title: 'Dark',
+    icon: 'moon.fill',
+    color: '#212121',
     query: 'dark night black',
   },
-  { 
-    id: '6', 
-    title: 'Anime', 
-    icon: 'sparkles.fill', 
-    color: '#E91E63', 
+  {
+    id: '6',
+    title: 'Anime',
+    icon: 'sparkles.fill',
+    color: '#E91E63',
     query: 'anime art illustration',
   },
 ];
@@ -129,7 +135,7 @@ export default function HomeScreen() {
     if (searchQuery.trim()) {
       router.push({
         pathname: '/explore',
-        params: { 
+        params: {
           q: searchQuery,
           category: selectedCategory,
           purity: selectedPurity
@@ -137,11 +143,11 @@ export default function HomeScreen() {
       });
     }
   };
-  
+
   const handleShowFilter = () => {
     setShowFilter(!showFilter);
   };
-  
+
 
   const categories = [
     { id: 'all', label: 'All' },
@@ -166,16 +172,16 @@ export default function HomeScreen() {
       try {
         const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
         const newSetting = nsfwSetting === 'true';
-        
+
         if (newSetting !== showNsfwContent) {
           setShowNsfwContent(newSetting);
           console.log('NSFW setting updated:', newSetting);
-          
+
           // Force reload of purity levels
           if (!newSetting || !wallhavenAPI.hasApiKey()) {
             setSelectedPurity('sfw');
           }
-          
+
           // Reload wallpapers to apply new settings
           loadWallpapers();
         }
@@ -183,10 +189,10 @@ export default function HomeScreen() {
         console.error('Failed to check NSFW setting changes:', error);
       }
     };
-    
+
     // Initial load
     checkNsfwSettingChanges();
-    
+
     // Check for setting changes when the component is focused
     const interval = setInterval(checkNsfwSettingChanges, 1000);
     return () => clearInterval(interval);
@@ -195,26 +201,26 @@ export default function HomeScreen() {
   useEffect(() => {
     // Set the API key directly 
     wallhavenAPI.setApiKey('S9eGuYOS7MOFjXfV91Up30hozbk5kpQR');
-    
+
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch random wallpapers for the featured section
         const randomResponse = await wallhavenAPI.getRandomWallpapers();
         setFeaturedWallpapers(randomResponse.data.slice(0, 5));
-        
+
         // Fetch latest wallpapers with proper parameters
-        const latestResponse = await wallhavenAPI.search({ 
+        const latestResponse = await wallhavenAPI.search({
           sorting: 'date_added',
           order: 'desc',
           page: 1,
           purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
         });
         setLatestWallpapers(latestResponse.data.slice(0, 6));
-        
+
         // Fetch top wallpapers with proper parameters
-        const topResponse = await wallhavenAPI.search({ 
+        const topResponse = await wallhavenAPI.search({
           sorting: 'toplist',
           order: 'desc',
           page: 1,
@@ -235,7 +241,7 @@ export default function HomeScreen() {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [selectedPurity]);
 
@@ -249,15 +255,15 @@ export default function HomeScreen() {
       params: { q: query }
     });
   };
-  
+
   const renderFeaturedItem = ({ item }: { item: WallpaperPreview }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.featuredItem}
       onPress={() => navigateToWallpaper(item.id)}
       activeOpacity={0.9}
     >
-      <Image 
-        source={{ uri: item.thumbs.large }} 
+      <Image
+        source={{ uri: item.thumbs.large }}
         style={styles.featuredImage}
       />
       <LinearGradient
@@ -266,11 +272,11 @@ export default function HomeScreen() {
       >
         <View style={styles.featuredInfo}>
           <View style={styles.featuredMeta}>
-          <Image1 size={18} color={theme.colors.primary} variant="Broken" />
+            <Image1 size={18} color={theme.colors.primary} variant="Broken" />
             <Text style={styles.featuredText}>{item.resolution}</Text>
           </View>
           <View style={styles.featuredMeta}>
-          <HeartCircle size={18} color={theme.colors.primary} variant="Broken" />
+            <HeartCircle size={18} color={theme.colors.primary} variant="Broken" />
             <Text style={styles.featuredText}>{item.favorites}</Text>
           </View>
         </View>
@@ -279,13 +285,13 @@ export default function HomeScreen() {
   );
 
   const renderWallpaperItem = ({ item, sectionTitle }: { item: WallpaperPreview, sectionTitle: string }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.wallpaperItem}
       onPress={() => navigateToWallpaper(item.id)}
       activeOpacity={0.9}
     >
-      <Image 
-        source={{ uri: item.thumbs.large }} 
+      <Image
+        source={{ uri: item.thumbs.large }}
         style={styles.wallpaperImage}
       />
       <LinearGradient
@@ -300,7 +306,7 @@ export default function HomeScreen() {
               <Text style={styles.wallpaperText}>{item.resolution}</Text>
             </View>
             <View style={styles.metaItem}>
-            <HeartCircle size={18} color={theme.colors.primary} variant="Broken" />
+              <HeartCircle size={18} color={theme.colors.primary} variant="Broken" />
               <Text style={styles.wallpaperText}>{item.favorites}</Text>
             </View>
           </View>
@@ -310,13 +316,13 @@ export default function HomeScreen() {
   );
 
   const renderCollectionItem = ({ item }: { item: typeof featuredCollections[0] }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       key={item.id}
       style={styles.collectionItem}
       onPress={() => navigateToCategory(item.query)}
     >
-      <Image 
-        source={{ uri: categoryWallpapers[item.id]?.thumbs.large }} 
+      <Image
+        source={{ uri: categoryWallpapers[item.id]?.thumbs.large }}
         style={styles.collectionImage}
       />
       <Text style={styles.collectionTitle}>{item.title}</Text>
@@ -326,11 +332,11 @@ export default function HomeScreen() {
   const loadWallpapers = async () => {
     try {
       setLoading(true);
-      
+
       // Check if trying to access NSFW or sketchy content without API key
       if ((selectedPurity === 'nsfw' || selectedPurity === 'sketchy') && !wallhavenAPI.hasApiKey()) {
         Alert.alert(
-          'API Key Required', 
+          'API Key Required',
           'You need to set a Wallhaven API key in Settings to access NSFW and sketchy content.',
           [
             { text: 'OK', onPress: () => setSelectedPurity('sfw') }
@@ -339,7 +345,7 @@ export default function HomeScreen() {
         setLoading(false);
         return;
       }
-      
+
       // Determine purity parameter based on selected purity
       let purityParam = '100'; // Default to SFW
       if (selectedPurity === 'sketchy') {
@@ -347,13 +353,13 @@ export default function HomeScreen() {
       } else if (selectedPurity === 'nsfw') {
         purityParam = '001'; // NSFW only
       }
-      
+
       const response = await wallhavenAPI.search({
         q: searchQuery,
         categories: selectedCategory === 'all' ? '111' : selectedCategory === 'general' ? '100' : selectedCategory === 'anime' ? '010' : '001',
         purity: purityParam, // Use the specific purity parameter
       });
-      
+
       setFeaturedWallpapers(response.data.slice(0, 9));
       setLatestWallpapers(response.data.slice(10, 19));
       setTopWallpapers(response.data.slice(20, 29));
@@ -388,14 +394,14 @@ export default function HomeScreen() {
                 <IconSymbol name="heart.fill" size={size} color={color} />
               )}
               size={20}
-              onPress={() => {}}
+              onPress={() => { }}
             />
             <IconButton
               icon={({ size, color }) => (
                 <IconSymbol name="square.and.arrow.down.fill" size={size} color={color} />
               )}
               size={20}
-              onPress={() => {}}
+              onPress={() => { }}
             />
           </View>
         </View>
@@ -405,7 +411,7 @@ export default function HomeScreen() {
 
   const loadMoreWallpapers = async () => {
     if (loadingMore || !hasMore) return;
-    
+
     try {
       setLoadingMore(true);
       const response = await wallhavenAPI.search({
@@ -413,12 +419,12 @@ export default function HomeScreen() {
         page: morePage,
         purity: selectedPurity === 'sfw' ? '100' : selectedPurity === 'sketchy' ? '010' : '001'
       });
-      
+
       if (response.data.length === 0) {
         setHasMore(false);
         return;
       }
-      
+
       setMoreWallpapers(prev => [...prev, ...response.data]);
       setMorePage(prev => prev + 1);
     } catch (error) {
@@ -434,12 +440,14 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ThemedView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading amazing wallpapers...</Text>
-        </ThemedView>
-      </SafeAreaView>
+      <View style={styles.loader}>
+        <LottieView
+           source={require("../../assets/animations/welcome.json")}// your animation file
+          autoPlay
+          loop
+          style={{ width: 200, height: 200 }} // size of animation
+        />
+      </View>
     );
   }
 
@@ -456,32 +464,32 @@ export default function HomeScreen() {
             headerStyle: { backgroundColor: theme.colors.background },
           }}
         />
-        
+
         {/* Updated searchContainer to match explore.tsx */}
-       <View style={styles.headerContainer}>
+        <View style={styles.headerContainer}>
           <View style={styles.headerRow}>
-            <Avatar.Image 
+            <Avatar.Image
               size={38}
               source={require('@/assets/images/shiori.png')}
             />
             <View style={styles.headerCol}>
               <Text style={styles.appTitle}>Shiori. <Text style={styles.subtitle}>v1.0.0.</Text></Text>
               <Text style={styles.subtitle}>Discover Beautiful Wallpapers.</Text>
-            </View>     
+            </View>
           </View>
 
 
           <View style={styles.glassIcons}>
-            <TouchableOpacity onPress={() => {}}>  
-                <Share size={20} color="#777" variant="Broken" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push('/explore')}>
-                <SearchNormal1 size={20} color="#777" variant="Broken" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleShowFilter}>
-                <Filter size={20} color="#777" variant="Broken" />
-              </TouchableOpacity>
-          </View> 
+            <TouchableOpacity onPress={() => { }}>
+              <Share size={20} color="#777" variant="Broken" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/explore')}>
+              <SearchNormal1 size={20} color="#777" variant="Broken" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleShowFilter}>
+              <Filter size={20} color="#777" variant="Broken" />
+            </TouchableOpacity>
+          </View>
 
         </View>
         {/* Updated filterContainer to match explore.tsx */}
@@ -492,7 +500,7 @@ export default function HomeScreen() {
               Categories
             </Text>
           </View>
-          
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
             {categories.map((category) => (
               <Chip
@@ -501,13 +509,13 @@ export default function HomeScreen() {
                 onPress={() => setSelectedCategory(category.id)}
                 style={[
                   styles.categoryChip,
-                  selectedCategory === category.id && { 
+                  selectedCategory === category.id && {
                     backgroundColor: theme.colors.primaryContainer,
                     borderColor: theme.colors.primary
                   }
                 ]}
                 textStyle={[
-                  selectedCategory === category.id && { 
+                  selectedCategory === category.id && {
                     color: theme.colors.primary,
                     fontFamily: 'Nunito-Bold'
                   }
@@ -527,7 +535,7 @@ export default function HomeScreen() {
                 Content
               </Text>
             </View>
-            
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.purityScroll}>
               {purityLevels.map((purity) => (
                 <Chip
@@ -536,13 +544,13 @@ export default function HomeScreen() {
                   onPress={() => setSelectedPurity(purity.id)}
                   style={[
                     styles.purityChip,
-                    selectedPurity === purity.id && { 
+                    selectedPurity === purity.id && {
                       backgroundColor: theme.colors.primaryContainer,
                       borderColor: theme.colors.primary
                     }
                   ]}
                   textStyle={[
-                    selectedPurity === purity.id && { 
+                    selectedPurity === purity.id && {
                       color: theme.colors.primary,
                       fontFamily: 'Nunito-Bold'
                     }
@@ -554,7 +562,7 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
         )}
-        
+
 
 
 
@@ -568,17 +576,17 @@ export default function HomeScreen() {
               <Text variant="headlineSmall" style={styles.sectionTitle}>Featured Wallpapers</Text>
             </View>
             <View style={styles.filterHeader}>
-            <Button 
-              mode="text" 
-              onPress={() => router.push('/explore')}
-              compact
-            >
-              See all
-            </Button>
+              <Button
+                mode="text"
+                onPress={() => router.push('/explore')}
+                compact
+              >
+                See all
+              </Button>
             </View>
-            
+
           </View>
-          
+
           <FlatList
             data={featuredWallpapers}
             horizontal
@@ -591,21 +599,21 @@ export default function HomeScreen() {
           />
           <View style={styles.section}>
             <View style={styles.header}>
-            <View style={styles.filterHeader2}>
-              <Clock size={18} color={theme.colors.primary} variant="Broken" />
-              <Text variant="headlineSmall" style={styles.sectionTitle}>Latest Additions</Text>
+              <View style={styles.filterHeader2}>
+                <Clock size={18} color={theme.colors.primary} variant="Broken" />
+                <Text variant="headlineSmall" style={styles.sectionTitle}>Latest Additions</Text>
+              </View>
+              <View style={styles.filterHeader}>
+                <Button
+                  mode="text"
+                  onPress={() => router.push('/explore')}
+                  compact
+                >
+                  See all
+                </Button>
+              </View>
             </View>
-            <View style={styles.filterHeader}>
-            <Button 
-              mode="text" 
-              onPress={() => router.push('/explore')}
-              compact
-            >
-              See all
-            </Button>
-            </View>
-            </View>
-            
+
             <FlatList
               data={latestWallpapers}
               horizontal
@@ -617,24 +625,24 @@ export default function HomeScreen() {
               snapToAlignment="center"
             />
           </View>
-          
+
           <View style={styles.section}>
             <View style={styles.header}>
-            <View style={styles.filterHeader2}>
-              <Like1 size={18} color={theme.colors.primary} variant="Broken" />
-              <Text variant="headlineSmall" style={styles.sectionTitle}>Top Rated</Text>
+              <View style={styles.filterHeader2}>
+                <Like1 size={18} color={theme.colors.primary} variant="Broken" />
+                <Text variant="headlineSmall" style={styles.sectionTitle}>Top Rated</Text>
+              </View>
+              <View style={styles.filterHeader}>
+                <Button
+                  mode="text"
+                  onPress={() => router.push('/explore')}
+                  compact
+                >
+                  See all
+                </Button>
+              </View>
             </View>
-            <View style={styles.filterHeader}>
-            <Button 
-              mode="text" 
-              onPress={() => router.push('/explore')}
-              compact
-            >
-              See all
-            </Button>
-            </View>
-            </View>
-            
+
             <FlatList
               data={topWallpapers}
               horizontal
@@ -646,7 +654,7 @@ export default function HomeScreen() {
               snapToAlignment="center"
             />
           </View>
-          
+
           <View style={styles.section}>
             <View style={styles.header}>
               <View style={styles.filterHeader2}>
@@ -654,22 +662,22 @@ export default function HomeScreen() {
                 <Text variant="headlineSmall" style={styles.sectionTitle}>More Wallpapers</Text>
               </View>
             </View>
-            
+
             <View style={styles.moreWallpapersGrid}>
               {moreWallpapers.map((item) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={item.id}
                   style={styles.moreWallpaperItem}
                   onPress={() => handleMoreWallpaperPress(item.id)}
                 >
-                  <Image 
-                    source={{ uri: item.thumbs.large }} 
+                  <Image
+                    source={{ uri: item.thumbs.large }}
                     style={styles.moreWallpaperImage}
                   />
                 </TouchableOpacity>
               ))}
             </View>
-            
+
             {hasMore && (
               <Button
                 mode="contained"
@@ -678,11 +686,11 @@ export default function HomeScreen() {
                 style={styles.loadMoreButton}
               >
                 Load More
-                
+
               </Button>
             )}
           </View>
-          
+
           <View style={styles.footer} />
         </ScrollView>
       </ThemedView>
@@ -707,11 +715,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h3,
   },
-  openFilter:{
-    display:'flex',
-    marginLeft:16,
-    marginTop:-10,
-    marginBottom:-5,
+  openFilter: {
+    display: 'flex',
+    marginLeft: 16,
+    marginTop: -10,
+    marginBottom: -5,
   },
   featuredList: {
     paddingLeft: 16,
@@ -913,16 +921,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Medium',
   },
   loadMoreButton: {
-    alignSelf:'center',
+    alignSelf: 'center',
     marginTop: 8,
     marginBottom: 10,
     fontFamily: 'Nunito-Bold',
-    width:'50%',
+    width: '50%',
   },
 
   headerContainer: {
     flexDirection: 'row',
-    justifyContent:'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -1019,7 +1027,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    gap:7,
+    gap: 7,
   },
   filterTitle: {
     marginLeft: 8,
@@ -1036,7 +1044,13 @@ const styles = StyleSheet.create({
   purityChip: {
     marginRight: 8,
   },
-
+  loader : {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+    backdropFilter: "Blur(10px)",
+  },
 
 
 } as const);

@@ -33,10 +33,14 @@ import {
   CloseCircle,
   Heart
 } from 'iconsax-react-nativejs';
-import { Platform } from 'react-native';
+
+// Constants for version tracking - must match _layout.tsx
+const CURRENT_APP_VERSION = '1.0.0'; // Make sure this matches the version in _layout.tsx
+const ONBOARDING_VERSION_KEY = 'onboardingCompletedForVersion';
 
 // Define a type for the valid animation names
 type AnimationName = 'welcome' | 'search' | 'document' | 'confetti';
+import { Platform } from 'react-native';
 
 // Define a type for the onboarding step
 type OnboardingStep = {
@@ -226,7 +230,28 @@ const OnboardingScreen = () => {
   const handleSkip = useCallback(async () => {
     triggerHaptic();
     playSound('skip');
-    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    console.log('Skipping onboarding - Setting AsyncStorage key:', ONBOARDING_VERSION_KEY);
+    console.log('Skipping onboarding - Setting value:', CURRENT_APP_VERSION);
+    try {
+      // First check if we can read from AsyncStorage
+      const testRead = await AsyncStorage.getItem(ONBOARDING_VERSION_KEY);
+      console.log('Current AsyncStorage value before skip:', testRead);
+      
+      // Then try to write to AsyncStorage
+      await AsyncStorage.setItem(ONBOARDING_VERSION_KEY, CURRENT_APP_VERSION);
+      
+      // Verify the write was successful
+      const verifyWrite = await AsyncStorage.getItem(ONBOARDING_VERSION_KEY);
+      console.log('AsyncStorage value after skip:', verifyWrite);
+      
+      if (verifyWrite === CURRENT_APP_VERSION) {
+        console.log('Skipping onboarding - AsyncStorage set successfully');
+      } else {
+        console.error('AsyncStorage verification failed - expected:', CURRENT_APP_VERSION, 'got:', verifyWrite);
+      }
+    } catch (error) {
+      console.error('Error setting AsyncStorage in handleSkip:', error);
+    }
     router.replace('/(tabs)');
   }, [triggerHaptic, playSound]);
 
@@ -276,7 +301,28 @@ const OnboardingScreen = () => {
       // Last step - complete onboarding with a celebratory haptic
       triggerHaptic();
       playSound('success');
-      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+      console.log('Completing onboarding - Setting AsyncStorage key:', ONBOARDING_VERSION_KEY);
+      console.log('Completing onboarding - Setting value:', CURRENT_APP_VERSION);
+      try {
+        // First check if we can read from AsyncStorage
+        const testRead = await AsyncStorage.getItem(ONBOARDING_VERSION_KEY);
+        console.log('Current AsyncStorage value before completion:', testRead);
+        
+        // Then try to write to AsyncStorage
+        await AsyncStorage.setItem(ONBOARDING_VERSION_KEY, CURRENT_APP_VERSION);
+        
+        // Verify the write was successful
+        const verifyWrite = await AsyncStorage.getItem(ONBOARDING_VERSION_KEY);
+        console.log('AsyncStorage value after completion:', verifyWrite);
+        
+        if (verifyWrite === CURRENT_APP_VERSION) {
+          console.log('Completing onboarding - AsyncStorage set successfully');
+        } else {
+          console.error('AsyncStorage verification failed - expected:', CURRENT_APP_VERSION, 'got:', verifyWrite);
+        }
+      } catch (error) {
+        console.error('Error setting AsyncStorage in handleNext:', error);
+      }
       router.replace('/(tabs)');
     }
   }, [currentStep, agreementAccepted, isAnimating, onboardingSteps.length, slideDirection, contentOpacity, contentScale, contentTranslateX, transitionToNextStep, triggerHaptic, playSound]);

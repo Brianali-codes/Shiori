@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity, Dimensions } from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
 import { Stack, router } from 'expo-router';
@@ -16,8 +16,68 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import { FontSizes } from '@/constants/FontSizes';
 
+const { width: screenWidth } = Dimensions.get('window');
+const COLUMN_COUNT = 2;
+const ITEM_MARGIN = 12;
+const CONTAINER_PADDING = 12;
+const ITEM_WIDTH = (screenWidth - (CONTAINER_PADDING * 2) - (ITEM_MARGIN * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
+
+interface MasonryItem extends WallpaperPreview {
+  height: number;
+  uniqueId: string;
+}
+
+// Custom Masonry Grid Component
+const MasonryGrid: React.FC<{
+  data: MasonryItem[];
+  renderItem: (item: MasonryItem, index: number) => React.ReactElement;
+  refreshControl?: React.ReactElement;
+  ListFooterComponent?: () => React.ReactElement | null;
+}> = ({ data, renderItem, refreshControl, ListFooterComponent }) => {
+  const [columnHeights, setColumnHeights] = useState<number[]>(Array(COLUMN_COUNT).fill(0));
+  const [columns, setColumns] = useState<MasonryItem[][]>(Array(COLUMN_COUNT).fill([]).map(() => []));
+
+  useEffect(() => {
+    // Reset columns when data changes
+    const newColumns: MasonryItem[][] = Array(COLUMN_COUNT).fill([]).map(() => []);
+    const newColumnHeights = Array(COLUMN_COUNT).fill(0);
+
+    data.forEach((item) => {
+      // Find the shortest column
+      const shortestColumnIndex = newColumnHeights.indexOf(Math.min(...newColumnHeights));
+      
+      // Add item to the shortest column
+      newColumns[shortestColumnIndex].push(item);
+      
+      // Update column height (add item height + margin)
+      newColumnHeights[shortestColumnIndex] += item.height + ITEM_MARGIN;
+    });
+
+    setColumns(newColumns);
+    setColumnHeights(newColumnHeights);
+  }, [data]);
+
+  const renderColumn = (columnData: MasonryItem[], columnIndex: number) => (
+    <View key={columnIndex} style={styles.column}>
+      {columnData.map((item, itemIndex) => renderItem(item, itemIndex))}
+    </View>
+  );
+
+  return (
+    <ScrollView
+      refreshControl={refreshControl}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.masonryContainer}>
+        {columns.map((columnData, columnIndex) => renderColumn(columnData, columnIndex))}
+      </View>
+      {ListFooterComponent && <ListFooterComponent />}
+    </ScrollView>
+  );
+};
+
 export default function ExploreScreen() {
-  const [wallpapers, setWallpapers] = useState<WallpaperPreview[]>([]);
+  const [wallpapers, setWallpapers] = useState<MasonryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +88,7 @@ export default function ExploreScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const theme = useTheme();
 
   // Load NSFW setting and favorites on component mount
@@ -67,6 +128,21 @@ export default function ExploreScreen() {
     { id: 'desc', label: 'Descending' },
     { id: 'asc', label: 'Ascending' },
   ];
+
+  // Function to calculate item height based on aspect ratio
+  const calculateItemHeight = (resolution: string): number => {
+    const [width, height] = resolution.split('x').map(Number);
+    if (!width || !height) return 200; // fallback height
+    
+    const aspectRatio = height / width;
+    const calculatedHeight = ITEM_WIDTH * aspectRatio;
+    
+    // Add some constraints to prevent extremely tall or short items
+    const minHeight = 150;
+    const maxHeight = 400;
+    
+    return Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
+  };
   
   const toggleFavorite = async (wallpaper: WallpaperPreview) => {
     try {
@@ -122,17 +198,18 @@ export default function ExploreScreen() {
         purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100',
       });
 
-      // Ensure each wallpaper has a unique ID by adding a timestamp if needed
-      const wallpapersWithUniqueIds = response.data.map((wallpaper, index) => ({
+      // Enhance wallpapers with height and unique ID for masonry layout
+      const wallpapersWithMasonryData: MasonryItem[] = response.data.map((wallpaper, index) => ({
         ...wallpaper,
+        height: calculateItemHeight(wallpaper.resolution),
         uniqueId: `${wallpaper.id}_${Date.now()}_${index}`
       }));
 
       if (isRefreshing) {
-        setWallpapers(wallpapersWithUniqueIds);
+        setWallpapers(wallpapersWithMasonryData);
       } else {
         // Replace previous wallpapers with new ones instead of appending
-        setWallpapers(wallpapersWithUniqueIds);
+        setWallpapers(wallpapersWithMasonryData);
       }
 
       if (response.data.length === 0) {
@@ -268,17 +345,25 @@ export default function ExploreScreen() {
     }
   };
 
-  const renderWallpaper = ({ item }: { item: WallpaperPreview }) => {
+  const renderWallpaper = (item: MasonryItem, index: number) => {
     const isFavorite = favorites.includes(item.id);
     
     return (
-      <Card style={styles.wallpaperCard} mode="elevated">
+      <Card 
+        key={item.uniqueId} 
+        style={[styles.wallpaperCard, { height: item.height }]} 
+        mode="elevated"
+      >
         <TouchableOpacity 
           onPress={() => router.push(`/wallpaper/${item.id}`)}
           activeOpacity={0.9}
+          style={styles.touchableContainer}
         >
           <View style={styles.wallpaperContainer}>
-            <Card.Cover source={{ uri: item.thumbs.large }} style={styles.wallpaperImage} />
+            <Card.Cover 
+              source={{ uri: item.thumbs.large }} 
+              style={[styles.wallpaperImage, { height: item.height }]} 
+            />
             
             {/* Glassmorphic buttons */}
             <View style={styles.buttonContainer}>
@@ -355,67 +440,90 @@ export default function ExploreScreen() {
           </View>
 
           <View style={styles.filterContainer}>
-            <View style={styles.filterHeader}>
-              <Sort size={18} color={theme.colors.primary} variant="Broken" />
-              <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
-                Sort by
-              </Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
-              {sortOptions.map((sort) => (
-                <Chip
-                  key={sort.id}
-                  selected={selectedSort === sort.id}
-                  onPress={() => setSelectedSort(sort.id)}
-                  style={[
-                    styles.sortChip,
-                    selectedSort === sort.id && { 
-                      backgroundColor: theme.colors.primaryContainer,
-                      borderColor: theme.colors.primary
-                    }
-                  ]}
-                  textStyle={[
-                    selectedSort === sort.id && { 
-                      color: theme.colors.primary,
-                      fontFamily: 'Nunito-Bold'
-                    }
-                  ]}
-                >
-                  {sort.label}
-                </Chip>
-              ))}
-            </ScrollView>
+            <TouchableOpacity 
+              style={styles.filterHeaderButton}
+              onPress={() => setFiltersExpanded(!filtersExpanded)}
+            >
+              <View style={styles.filterHeader}>
+                <Filter size={18} color={theme.colors.primary} variant="Broken" />
+                <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
+                  Filters
+                </Text>
+                <View style={styles.filterExpandIcon}>
+                  {filtersExpanded ? (
+                    <ArrowUp2 size={20} color={theme.colors.primary} variant="Broken" />
+                  ) : (
+                    <ArrowDown2 size={20} color={theme.colors.primary} variant="Broken" />
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
 
-            <View style={styles.filterHeader}>
-              <Filter size={18} color={theme.colors.primary} variant="Broken" />
-              <Text style={[styles.filterTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.body }]}>
-                Order
-              </Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderScroll}>
-              {orderOptions.map((order) => (
-                <Chip
-                  key={order.id}
-                  selected={selectedOrder === order.id}
-                  onPress={() => setSelectedOrder(order.id)}
-                  style={[
-                    styles.orderChip,
-                    selectedOrder === order.id && { 
-                      backgroundColor: theme.colors.primaryContainer,
-                      borderColor: theme.colors.primary
-                    }
-                  ]}
-                  textStyle={[
-                    selectedOrder === order.id && { 
-                      color: theme.colors.primary,
-                      fontFamily: 'Nunito-Bold'
-                    }
-                  ]}
-                >
-                  {order.label}
-                </Chip>
-              ))}
-            </ScrollView>
+            {filtersExpanded && (
+              <View style={styles.expandedFilters}>
+                <View style={styles.subFilterHeader}>
+                  <Sort size={16} color={theme.colors.onSurface} variant="Broken" />
+                  <Text style={[styles.subFilterTitle, { fontFamily: 'Nunito-SemiBold', fontSize: FontSizes.bodySmall }]}>
+                    Sort by
+                  </Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortScroll}>
+                  {sortOptions.map((sort) => (
+                    <Chip
+                      key={sort.id}
+                      selected={selectedSort === sort.id}
+                      onPress={() => setSelectedSort(sort.id)}
+                      style={[
+                        styles.sortChip,
+                        selectedSort === sort.id && { 
+                          backgroundColor: theme.colors.primaryContainer,
+                          borderColor: theme.colors.primary
+                        }
+                      ]}
+                      textStyle={[
+                        selectedSort === sort.id && { 
+                          color: theme.colors.primary,
+                          fontFamily: 'Nunito-Bold'
+                        }
+                      ]}
+                    >
+                      {sort.label}
+                    </Chip>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.subFilterHeader}>
+                  <ArrowUp2 size={16} color={theme.colors.onSurface} variant="Broken" />
+                  <Text style={[styles.subFilterTitle, { fontFamily: 'Nunito-SemiBold', fontSize: FontSizes.bodySmall }]}>
+                    Order
+                  </Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.orderScroll}>
+                  {orderOptions.map((order) => (
+                    <Chip
+                      key={order.id}
+                      selected={selectedOrder === order.id}
+                      onPress={() => setSelectedOrder(order.id)}
+                      style={[
+                        styles.orderChip,
+                        selectedOrder === order.id && { 
+                          backgroundColor: theme.colors.primaryContainer,
+                          borderColor: theme.colors.primary
+                        }
+                      ]}
+                      textStyle={[
+                        selectedOrder === order.id && { 
+                          color: theme.colors.primary,
+                          fontFamily: 'Nunito-Bold'
+                        }
+                      ]}
+                    >
+                      {order.label}
+                    </Chip>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           {loading ? (
@@ -423,12 +531,9 @@ export default function ExploreScreen() {
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           ) : (
-            <FlatList
+            <MasonryGrid
               data={wallpapers}
               renderItem={renderWallpaper}
-              keyExtractor={(item) => item.uniqueId || item.id}
-              numColumns={2}
-              contentContainerStyle={styles.wallpaperList}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
@@ -469,8 +574,6 @@ export default function ExploreScreen() {
                   </View>
                 ) : null
               )}
-              showsVerticalScrollIndicator={false}
-              columnWrapperStyle={styles.columnWrapper}
             />
           )}
         </View>
@@ -488,7 +591,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: CONTAINER_PADDING,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -510,13 +613,35 @@ const styles = StyleSheet.create({
   filterContainer: {
     marginBottom: 16,
   },
+  filterHeaderButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 1,
+    paddingHorizontal: 10,
+  },
   filterHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
   },
   filterTitle: {
     marginLeft: 8,
+    flex: 1,
+  },
+  filterExpandIcon: {
+    marginLeft: 'auto',
+  },
+  expandedFilters: {
+    paddingTop: 8,
+  },
+  subFilterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  subFilterTitle: {
+    marginLeft: 6,
+    opacity: 0.7,
   },
   sortScroll: {
     marginBottom: 16,
@@ -535,25 +660,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  wallpaperList: {
+  // Masonry Grid Styles
+  masonryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingBottom: Platform.OS === 'ios' ? 8 : 16,
   },
-  columnWrapper: {
-    justifyContent: 'space-between',
+  column: {
+    width: ITEM_WIDTH,
   },
   wallpaperCard: {
-    width: '48%',
-    marginBottom: 16,
+    width: ITEM_WIDTH,
+    marginBottom: ITEM_MARGIN,
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 3,
   },
+  touchableContainer: {
+    flex: 1,
+  },
   wallpaperContainer: {
     position: 'relative',
+    flex: 1,
   },
   wallpaperImage: {
-    aspectRatio: 1,
     borderRadius: 0,
+    width: '100%',
   },
   buttonContainer: {
     position: 'absolute',
@@ -585,7 +717,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 60,
     justifyContent: 'flex-end',
     padding: 12,
   },
