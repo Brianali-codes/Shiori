@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions, AppState } from 'react-native';
-import { Card, Text, ActivityIndicator, useTheme, IconButton, Button, Portal, FAB } from 'react-native-paper';
+import { Card, Text, ActivityIndicator, useTheme, IconButton, Button, Portal, FAB, Avatar } from 'react-native-paper';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,7 +8,7 @@ import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HeartIcon } from '@/components/ui/CustomIcons';
-import { ArrowDown, Heart, ArrowDown2, InfoCircle, CloseCircle, Trash } from 'iconsax-react-nativejs';
+import { ArrowDown, Heart, ArrowDown2, InfoCircle, CloseCircle, Trash, Grid3, Fatrows } from 'iconsax-react-nativejs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontSizes } from '@/constants/FontSizes';
@@ -22,6 +22,7 @@ export default function FavoritesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperPreview | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [isGridLayout, setIsGridLayout] = useState(true); // New state for layout
   const theme = useTheme();
   const colors = useThemeColors();
   const router = useRouter();
@@ -75,6 +76,10 @@ export default function FavoritesScreen() {
     }
   };
 
+  const toggleLayout = () => {
+    setIsGridLayout(!isGridLayout);
+  };
+
   // Use useFocusEffect to refresh favorites when the screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -89,20 +94,20 @@ export default function FavoritesScreen() {
 
   const renderFavorite = ({ item }: { item: WallpaperPreview }) => (
     <TouchableOpacity 
-      style={styles.favoriteCardContainer}
+      style={isGridLayout ? styles.favoriteCardContainer : styles.listItemContainer}
       onPress={() => handleWallpaperPress(item)}
     >
-      <Card style={styles.favoriteCard} mode="elevated">
+      <Card style={isGridLayout ? styles.favoriteCard : styles.listCard} mode="elevated">
         <ImageBackground
           source={{ uri: item.thumbs.large }}
-          style={styles.favoriteImage}
-          imageStyle={styles.favoriteImageStyle}
+          style={isGridLayout ? styles.favoriteImage : styles.listImage}
+          imageStyle={isGridLayout ? styles.favoriteImageStyle : styles.listImageStyle}
         >
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
-            style={styles.gradientOverlay}
+            style={isGridLayout ? styles.gradientOverlay : styles.listGradientOverlay}
           >
-            <View style={styles.favoriteContent}>
+            <View style={isGridLayout ? styles.favoriteContent : styles.listContent}>
               <View style={styles.favoriteInfo}>
                 <View style={styles.resolutionContainer}>
                   <InfoCircle size={16} color="#FFFFFF" variant="Broken" />
@@ -203,7 +208,7 @@ export default function FavoritesScreen() {
             </Text>
             <Button
               mode="contained"
-              onPress={() => {}}
+              onPress={() => {router.replace('/explore');}}
               style={styles.exploreButton}
               labelStyle={{ fontFamily: 'Nunito-Bold', fontSize: FontSizes.button }}
             >
@@ -216,19 +221,39 @@ export default function FavoritesScreen() {
           </View>
         ) : (
           <>
-            <View style={[styles.headerSection, { backgroundColor: theme.colors.surface }]}>
-              <Text style={[styles.headerTitle, { color: colors.text, fontFamily: 'Nunito-Bold', fontSize: FontSizes.h3 }]}>
-                Your Favorites
-              </Text>
-              <Text style={[styles.headerSubtitle, { color: colors.subtext, fontFamily: 'Nunito-Regular', fontSize: FontSizes.body }]}>
-                {favorites.length} {favorites.length === 1 ? 'wallpaper' : 'wallpapers'} saved
-              </Text>
+            <View style={styles.headerContainer}>
+              <View style={styles.headerRow}>
+                <Avatar.Image
+                  size={38}
+                  source={require('@/assets/images/shiori.png')}
+                />
+                <View style={styles.headerCol}>
+                  <Text style={[styles.appTitle, { fontFamily: 'Nunito-Bold', fontSize: FontSizes.h4 }]}>
+                    Favorites <Text style={[styles.subtitle, { fontFamily: 'Nunito-Regular', fontSize: FontSizes.body }]}>v1.0.0</Text>
+                  </Text>
+                  <Text style={[styles.subtitle, { fontFamily: 'Nunito-Regular', fontSize: FontSizes.bodySmall }]}>
+                    {favorites.length} {favorites.length === 1 ? 'wallpaper' : 'wallpapers'} saved
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.glassIcons}>
+                <TouchableOpacity onPress={toggleLayout} style={styles.layoutButton}>
+                  {isGridLayout ? (
+                    <Fatrows size={20} color="#777" variant="Broken" />
+                  ) : (
+                    <Grid3 size={20} color="#777" variant="Broken" />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
+            
             <FlatList
               data={favorites}
               renderItem={renderFavorite}
               keyExtractor={(item) => item.id}
-              numColumns={2}
+              numColumns={isGridLayout ? 2 : 1}
+              key={isGridLayout ? 'grid' : 'list'}
               contentContainerStyle={styles.favoritesList}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -246,6 +271,45 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: 20,
+    marginHorizontal: 15,
+    marginTop: 10,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerCol: {
+    marginLeft: 12,
+  },
+  appTitle: {
+    color: '#ffffff',
+
+    marginBottom: 2,
+  },
+  subtitle: {
+    color: '#777',
+  },
+   glassIcons: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    padding: 5,
+    backdropFilter: 'blur(10px)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  layoutButton: {
+    padding: 4,
   },
   emptyContainer: {
     flex: 1,
@@ -301,6 +365,35 @@ const styles = StyleSheet.create({
   favoriteContent: {
     padding: 12,
   },
+  // List layout styles
+  listItemContainer: {
+    marginHorizontal: 8,
+    marginVertical: 4,
+  },
+  listCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+  },
+  listImage: {
+    height: 120,
+    width: '100%',
+    flexDirection: 'row',
+  },
+  listImageStyle: {
+    borderRadius: 16,
+  },
+  listGradientOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    justifyContent: 'flex-end',
+  },
+  listContent: {
+    padding: 12,
+  },
   favoriteInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -323,19 +416,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     margin: 0,
-  },
-  headerSection: {
-    padding: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    marginHorizontal: 8,
-    elevation: 2,
-  },
-  headerTitle: {
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    opacity: 0.8,
   },
   modalContainer: {
     flex: 1,
@@ -378,4 +458,4 @@ const styles = StyleSheet.create({
     right: 16,
     borderRadius: 16,
   },
-}); 
+});

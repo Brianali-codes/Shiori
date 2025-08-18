@@ -478,7 +478,7 @@ export default function BugReportScreen() {
               style={[styles.submitButton, { backgroundColor: theme.colors.primary }]}
               loading={isSubmitting}
               disabled={isSubmitting || !title || !description || !selectedCategory}
-              labelStyle={{ fontFamily: 'Nunito-Bold', fontSize: FontSizes.button }}
+              labelStyle={{ fontFamily: 'Nunito-Bold', fontSize: FontSizes.button , color: '#000' }}
               contentStyle={styles.submitButtonContent}
             >
               {isSubmitting ? 'Submitting Report...' : 'Submit Bug Report'}
@@ -691,6 +691,7 @@ const styles = StyleSheet.create({
   },
   submitButtonContent: {
     paddingVertical: 8,
+  
   },
   contactMethod: {
     flexDirection: 'row',
