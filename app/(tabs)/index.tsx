@@ -442,10 +442,10 @@ export default function HomeScreen() {
     return (
       <View style={styles.loader}>
         <LottieView
-           source={require("../../assets/animations/welcome.json")}// your animation file
+           source={require("../../assets/animations/loader.json")}// your animation file
           autoPlay
           loop
-          style={{ width: 200, height: 200 }} // size of animation
+          style={{ width: 150, height: 150 }} // size of animation
         />
       </View>
     );
