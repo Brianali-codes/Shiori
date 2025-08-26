@@ -4,7 +4,7 @@
     "slug": "shiori",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/shiori.png",
+    "icon": "./assets/images/shiori-icon.png",
     "scheme": "shiori",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -25,7 +25,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/shiori.png",
+        "foregroundImage": "./assets/images/shiori-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.brianali.shiori",
@@ -42,14 +42,14 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/shiori.png"
+      "favicon": "./assets/images/shiori-icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/shiori.png",
+          "image": "./assets/images/shiori-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
