@@ -1,26 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Alert } from 'react-native';
-import { Heart, ArrowDown2, InfoCircle, SearchNormal1, ArchiveTick, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2, Star, Clock, Like1, More2, Eye, HeartCircle, Share, Blur, } from 'iconsax-react-nativejs';
-import { Text, Surface, Card, Button, useTheme, Title, Chip, Badge, Searchbar, IconButton } from 'react-native-paper';
+import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, Alert } from 'react-native';
+import { SearchNormal1, ArchiveTick, Sort, Filter, Clock, Like1, More2,  HeartCircle, Share} from 'iconsax-react-nativejs';
+import { Text, Card, Button, useTheme, Chip, IconButton } from 'react-native-paper';
 import { Image as Image1 } from 'iconsax-react-nativejs';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { ThemedView } from '@/components/ThemedComponents';
-import { WallpaperCard } from '@/components/ui/WallpaperCard';
-import { wallhavenAPI, WallpaperPreview, SearchParams } from '../services/wallhaven';
+import { wallhavenAPI, WallpaperPreview } from '../services/wallhaven';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontSizes } from '@/constants/FontSizes';
-import * as Haptics from 'expo-haptics';
 import { Avatar } from 'react-native-paper';
-import { BlurView } from 'expo-blur';
 import LottieView from "lottie-react-native";
-
-
-
-
 
 
 const { width } = Dimensions.get('window');
@@ -71,44 +64,6 @@ const featuredCollections = [
   },
 ];
 
-const popularCategories = [
-  {
-    id: 'nature',
-    name: 'Nature',
-    icon: '🌿',
-    searchQuery: 'nature landscape forest mountain',
-  },
-  {
-    id: 'anime',
-    name: 'Anime',
-    icon: '🎌',
-    searchQuery: 'anime art illustration',
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    icon: '⚪',
-    searchQuery: 'minimal simple clean',
-  },
-  {
-    id: 'abstract',
-    name: 'Abstract',
-    icon: '🎨',
-    searchQuery: 'abstract art colorful',
-  },
-  {
-    id: 'space',
-    name: 'Space',
-    icon: '🌌',
-    searchQuery: 'space galaxy stars',
-  },
-  {
-    id: 'architecture',
-    name: 'Architecture',
-    icon: '🏛️',
-    searchQuery: 'architecture building city',
-  },
-];
 
 export default function HomeScreen() {
   const theme = useTheme();

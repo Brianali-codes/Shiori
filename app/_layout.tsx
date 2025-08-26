@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Application from 'expo-application';
 import { ThemeProvider, useThemeContext } from '../contexts/ThemeContext';
 import { FontSizeProvider, useFontSizeContext } from '../contexts/FontSizeContext';
 import { Colors } from '../constants/Colors';

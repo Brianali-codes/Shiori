@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, FlatList, ActivityIndicator, Dimensions } from 'react-native';
-import { Text, Searchbar, useTheme, IconButton } from 'react-native-paper';
+import { Searchbar, useTheme, IconButton } from 'react-native-paper';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemedView } from '@/components/ThemedComponents';
 import { WallpaperCard } from '@/components/ui/WallpaperCard';
 import { wallhavenAPI, WallpaperPreview } from './services/wallhaven';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SearchNormal } from 'iconsax-react-nativejs';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = width * 0.8;

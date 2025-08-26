@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity, Dimensions } from 'react-native';
-import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip, IconButton } from 'react-native-paper';
+import { StyleSheet, View,  RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity, Dimensions } from 'react-native';
+import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip} from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, ArrowDown, Filter, Add, ArrowLeft2, ArrowRight2 } from 'iconsax-react-nativejs';
+import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, Filter, ArrowLeft2, ArrowRight2 } from 'iconsax-react-nativejs';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';

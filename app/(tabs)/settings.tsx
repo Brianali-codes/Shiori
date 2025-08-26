@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Animated, Easing, Platform, Linking, ToastAndroid } from 'react-native';
-import { List, Text, Divider, Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card, RadioButton } from 'react-native-paper';
-import { Setting2, Moon, Sun, Paintbucket, Shield, Folder, Gallery, Lock, Notification, InfoCircle, MessageQuestion, ArrowRight2, Key, Wifi, Star, Trash, Eye, Message, Share } from 'iconsax-react-nativejs';
+import { List, Text,  Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card, RadioButton } from 'react-native-paper';
+import { Setting2, Folder, InfoCircle, ArrowRight2, Key, Wifi, Star, Trash, Eye, Message, Share } from 'iconsax-react-nativejs';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { wallhavenAPI, setHighQualityMode } from '../services/wallhaven';

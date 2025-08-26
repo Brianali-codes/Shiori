@@ -1,13 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, ScrollView, ToastAndroid, Platform, Alert, Linking, Animated, TouchableOpacity } from 'react-native';
-import { Button, Text, TextInput, useTheme, Divider, ActivityIndicator, Chip, Card } from 'react-native-paper';
+import { Button, Text, TextInput, useTheme,  ActivityIndicator, Chip, } from 'react-native-paper';
 import { DeviceMessage, Message, Document, InfoCircle, Copy, Warning2, Star1, Clock, TickCircle} from 'iconsax-react-nativejs';
 import * as ExpoClipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeContext } from '@/contexts/ThemeContext';
@@ -46,7 +45,7 @@ export default function BugReportScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpeningGitHub, setIsOpeningGitHub] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
+
   
   const progressAnim = useRef(new Animated.Value(0)).current;
   const successAnim = useRef(new Animated.Value(0)).current;

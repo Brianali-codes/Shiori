@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions, AppState } from 'react-native';
+import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions} from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, IconButton, Button, Portal, FAB, Avatar } from 'react-native-paper';
-import { ThemedView, ThemedText } from '@/components/ThemedComponents';
+import { ThemedView } from '@/components/ThemedComponents';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { wallhavenAPI } from '../services/wallhaven';
 import { WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { HeartIcon } from '@/components/ui/CustomIcons';
 import { ArrowDown, Heart, ArrowDown2, InfoCircle, CloseCircle, Trash, Grid3, Fatrows } from 'iconsax-react-nativejs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';

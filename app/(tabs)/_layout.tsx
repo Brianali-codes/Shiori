@@ -1,8 +1,8 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, View, StyleSheet, Text } from 'react-native';
-import { Home, SearchNormal, Heart, Setting, LocationDiscover, MessageQuestion } from 'iconsax-react-nativejs';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Home, Heart, Setting, LocationDiscover, MessageQuestion } from 'iconsax-react-nativejs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
