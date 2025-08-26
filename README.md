@@ -131,7 +131,7 @@ The app integrates with the Wallhaven API to fetch wallpapers. The API provides 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/shiori.git
+git clone https://github.com/brianali-codes/shiori.git
 
 # Navigate to the project directory
 cd shiori
