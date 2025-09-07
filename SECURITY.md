@@ -21,7 +21,7 @@ If you discover a security vulnerability in Shiori Wallpapers, please follow the
    Instead, send a report directly to the maintainers.
 
 2. **Contact**:  
-   - Email: `security@shiori.app` *(replace with your real address)*  
+   - Email: `brianali427@gmail.com` 
    - Or, if preferred, use GitHub’s [Private Vulnerability Reporting](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/about-reporting-security-vulnerabilities) feature.
 
 3. **What to include**:  
