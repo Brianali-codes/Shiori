@@ -1,4 +1,4 @@
-
+[![Github All Releases](https://img.shields.io/github/downloads/brianali-codes/frapp/total.svg)]()
 # Shiori
 
 A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.
