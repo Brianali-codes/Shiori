@@ -3,7 +3,10 @@
 </p>
 
 <h1 align="center">Shiori</h1>
-
+<p align="center">
+  <a href="https://github.com/brianali-codes/shiori"><img src="https://img.shields.io/github/downloads/brianali-codes/shiori/total.svg" alt="Github All Releases" /></a>
+  <a href="https://choosealicense.com/licenses/mit/"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT License" /></a>
+</p>
 <p align="center">
   <a href="#overview">Overview</a> •
   <a href="#features">Features</a> •
@@ -17,9 +20,7 @@
   <strong>A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.</strong>
 </p>
 
-<p align="center">
-  <a href=""><img src="https://img.shields.io/github/downloads/brianali-codes/shiori/total.svg" alt="Github All Releases" /></a>
-</p>
+
 
 ---
 
