@@ -1,13 +1,33 @@
-[![Github All Releases](https://img.shields.io/github/downloads/brianali-codes/shiori/total.svg)]()
-# Shiori
+<p align="center">
+  <img width="48" height="48" alt="Shiori Logo" src="https://github.com/user-attachments/assets/6d1d5d51-b47f-40c1-9940-7cf6fb8392d1" />
+</p>
 
-A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.
+<h1 align="center">Shiori</h1>
 
-<img src="https://github.com/user-attachments/assets/6d1d5d51-b47f-40c1-9940-7cf6fb8392d1" width="150" />
+<p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#features">Features</a> •
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#app-structure">App Structure</a> •
+  <a href="#screens">Screens</a> •
+  <a href="#technical-stack">Technical Stack</a>
+</p>
+
+<p align="center">
+  <strong>A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.</strong>
+</p>
+
+<p align="center">
+  <a href=""><img src="https://img.shields.io/github/downloads/brianali-codes/shiori/total.svg" alt="Github All Releases" /></a>
+</p>
+
+---
 
 ## Overview
 
 Shiori is a sleek, Material Design-inspired wallpaper application that allows users to browse, search, filter, and apply wallpapers directly to their devices. The app features Google Pixel-like icons and a modern UI/UX design for an intuitive user experience.
+
+---
 
 ## Features
 
@@ -21,6 +41,8 @@ Shiori is a sleek, Material Design-inspired wallpaper application that allows us
 - **Dark Mode**: Full support for light and dark themes
 - **Customizable Settings**: Personalize your experience
 - **Beautiful icons and UI**: Experience simplicity an style all in one package.
+
+---
 
 ## Screenshots
 
