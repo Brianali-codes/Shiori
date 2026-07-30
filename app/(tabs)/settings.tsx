@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, View, TouchableOpacity, Alert, Animated, Easing, Platform, Linking, ToastAndroid } from 'react-native';
-import { List, Text,  Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card, RadioButton } from 'react-native-paper';
-import { Setting2, Folder, InfoCircle, ArrowRight2, Key, Wifi, Star, Trash, Eye, Message, Share } from 'iconsax-react-nativejs';
+import { List, Text, Avatar, Button, IconButton, Surface, useTheme, Dialog, Portal, TextInput, ActivityIndicator, Card, RadioButton } from 'react-native-paper';
+import { Setting2, Folder, InfoCircle, ArrowRight2, Key, Wifi, Star, Trash, Eye, Message, Share, Coffee } from 'iconsax-react-nativejs';
 import { ThemedView, ThemedText } from '@/components/ThemedComponents';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { wallhavenAPI, setHighQualityMode } from '../services/wallhaven';
@@ -24,7 +24,7 @@ const AnimatedSwitch: React.FC<AnimatedSwitchProps> = ({ value, onValueChange, d
   const translateX = useRef(new Animated.Value(value ? 20 : 0)).current;
   const switchScale = useRef(new Animated.Value(value ? 1 : 0.9)).current;
   const backgroundColorAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
-  
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(translateX, {
@@ -60,12 +60,12 @@ const AnimatedSwitch: React.FC<AnimatedSwitchProps> = ({ value, onValueChange, d
   };
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       onPress={handlePress}
       disabled={disabled}
       style={{ opacity: disabled ? 0.5 : 1 }}
     >
-      <Animated.View 
+      <Animated.View
         style={[
           switchStyles.track,
           { backgroundColor },
@@ -73,7 +73,7 @@ const AnimatedSwitch: React.FC<AnimatedSwitchProps> = ({ value, onValueChange, d
       >
         <Animated.View
           style={[
-            switchStyles.thumb,  
+            switchStyles.thumb,
             {
               transform: [
                 { translateX },
@@ -115,7 +115,7 @@ export default function SettingsScreen() {
   const fontSizeContext = useFontSizeContext();
   const { fontSizes } = fontSizeContext;
   const fontSizeContextRef = useRef(fontSizeContext);
-  
+
   useEffect(() => {
     fontSizeContextRef.current = fontSizeContext;
   }, [fontSizeContext]);
@@ -217,7 +217,7 @@ export default function SettingsScreen() {
           // Set the API key to the API service and update status
           wallhavenAPI.setApiKey(savedKey);
           updateAuthState({ hasApiKey: true });
-          
+
           // Load username
           const savedUsername = await AsyncStorage.getItem('wallhavenUsername');
           if (savedUsername) {
@@ -245,7 +245,7 @@ export default function SettingsScreen() {
       updateAuthState({ loading: true });
       // Clear stored credentials
       await AsyncStorage.multiRemove(['wallhavenApiKey', 'wallhavenUsername']);
-      
+
       updateAuthState({
         username: 'Shiori',
         apiKey: '',
@@ -254,7 +254,7 @@ export default function SettingsScreen() {
         profileImage: null
       });
       wallhavenAPI.setApiKey('');
-      
+
       // Show Material Design success dialog
       Alert.alert(
         'Success',
@@ -263,7 +263,7 @@ export default function SettingsScreen() {
           {
             text: 'OK',
             style: 'default',
-            onPress: () => {}
+            onPress: () => { }
           }
         ],
         {
@@ -279,7 +279,7 @@ export default function SettingsScreen() {
           {
             text: 'OK',
             style: 'default',
-            onPress: () => {}
+            onPress: () => { }
           }
         ],
         {
@@ -292,22 +292,22 @@ export default function SettingsScreen() {
 
   const handleWebViewMessage = async (event: any) => {
     const newApiKey = event.nativeEvent.data;
-    
+
     if (newApiKey) {
       try {
         updateAuthState({ loading: true });
         wallhavenAPI.setApiKey(newApiKey);
-        
+
         try {
           const settings = await wallhavenAPI.getUserSettings();
           await AsyncStorage.setItem('wallhavenApiKey', newApiKey);
-          
+
           // Generate random profile for the user
           const randomUsername = generateRandomUsername();
           const randomAvatar = generateRandomAvatar();
-          
+
           await AsyncStorage.setItem('wallhavenUsername', randomUsername);
-          
+
           updateAuthState({
             username: randomUsername,
             apiKey: newApiKey,
@@ -316,7 +316,7 @@ export default function SettingsScreen() {
             hasApiKey: true,
             profileImage: randomAvatar
           });
-          
+
           // Show Material Design success dialog
           Alert.alert(
             'Success',
@@ -325,7 +325,7 @@ export default function SettingsScreen() {
               {
                 text: 'OK',
                 style: 'default',
-                onPress: () => {}
+                onPress: () => { }
               }
             ],
             {
@@ -342,7 +342,7 @@ export default function SettingsScreen() {
               {
                 text: 'OK',
                 style: 'default',
-                onPress: () => {}
+                onPress: () => { }
               }
             ],
             {
@@ -360,7 +360,7 @@ export default function SettingsScreen() {
             {
               text: 'OK',
               style: 'default',
-              onPress: () => {}
+              onPress: () => { }
             }
           ],
           {
@@ -389,26 +389,26 @@ export default function SettingsScreen() {
     try {
       // Show loading indicator
       setLoadingStates(prev => ({ ...prev, apiKey: true }));
-      
+
       // Set the API key to test it
       wallhavenAPI.setApiKey(authState.apiKey);
-      
+
       // Test the API key by making a request
       try {
         const settings = await wallhavenAPI.getUserSettings();
-        
+
         // If we get here, the key is valid - save it
         await AsyncStorage.setItem('wallhavenApiKey', authState.apiKey);
-        
+
         // Save username if available
         if (settings && settings.username) {
           await AsyncStorage.setItem('wallhavenUsername', settings.username);
-          updateAuthState({ 
+          updateAuthState({
             username: settings.username,
             apiKey: authState.apiKey
           });
         }
-        
+
         // Clear the input and show success
         updateAuthState({ apiKey: '' });
         Alert.alert('Success', 'API key has been saved and verified successfully.');
@@ -434,8 +434,8 @@ export default function SettingsScreen() {
         'To view NSFW content, you need to set your Wallhaven API key. You can get this from your Wallhaven account settings at wallhaven.cc.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Set API Key', 
+          {
+            text: 'Set API Key',
             onPress: () => updateAuthState({ wallhavenAuthVisible: true })
           }
         ]
@@ -445,18 +445,18 @@ export default function SettingsScreen() {
 
     updateLoadingStates({ nsfw: true });
     updateSettings({ showNsfwContent: value });
-    
+
     try {
       await AsyncStorage.setItem('showNsfwContent', value ? 'true' : 'false');
-      
+
       // Important: Update the NSFW filter in the wallhaven API
       // This ensures the API applies the correct filter settings
       wallhavenAPI.updateNsfwFilter(value);
-      
+
       // Add a small delay to show the loading indicator
       setTimeout(() => {
         updateLoadingStates({ nsfw: false });
-        
+
         // If NSFW is being disabled, force a refresh of all screens to show SFW content only
         if (!value) {
           // Force a refresh of the home screen
@@ -475,11 +475,11 @@ export default function SettingsScreen() {
   const handleHighQualityToggle = async (value: boolean) => {
     updateLoadingStates({ highQuality: true });
     updateSettings({ highQualityThumbs: value });
-    
+
     try {
       await AsyncStorage.setItem('highQualityThumbs', value ? 'true' : 'false');
       setHighQualityMode(value);
-      
+
       // Add a small delay to show the loading indicator
       setTimeout(() => {
         updateLoadingStates({ highQuality: false });
@@ -494,10 +494,10 @@ export default function SettingsScreen() {
   const handleAutoDownloadToggle = async (value: boolean) => {
     updateLoadingStates({ autoDownload: true });
     updateSettings({ autoDownloadOnFavorite: value });
-    
+
     try {
       await AsyncStorage.setItem('autoDownloadOnFavorite', value ? 'true' : 'false');
-      
+
       // Add a small delay to show the loading indicator
       setTimeout(() => {
         updateLoadingStates({ autoDownload: false });
@@ -530,13 +530,13 @@ export default function SettingsScreen() {
   const handleClearFavorites = async () => {
     try {
       updateLoadingStates({ favorites: true });
-      
+
       // Clear favorites from AsyncStorage
       await AsyncStorage.removeItem('favorites');
-      
+
       // Force a refresh of the favorites page by navigating to it
       router.push('/(tabs)/favorites');
-      
+
       if (Platform.OS === 'android') {
         ToastAndroid.show('Favorites cleared successfully', ToastAndroid.SHORT);
       } else {
@@ -575,32 +575,32 @@ export default function SettingsScreen() {
   const handleFontSizeChange = async (value: string) => {
     if (value === 'small' || value === 'medium' || value === 'large') {
       updateLoadingStates({ fontSize: true });
-      
+
       try {
         // Don't use hooks here - access the context outside and pass it in
         await AsyncStorage.setItem('fontSizeOption', value);
-        
+
         // Update the local state
         updateSettings({ fontSize: value as 'small' | 'medium' | 'large' });
-        
+
         // Show a brief loading indicator for visual feedback
         setTimeout(() => {
           updateLoadingStates({ fontSize: false });
-          
+
           // Use the FontSizeContext's refreshFontSizes method to update fonts
           fontSizeContextRef.current?.setFontSize(value as 'small' | 'medium' | 'large');
-          
+
           // Show success toast
           if (Platform.OS === 'android') {
             ToastAndroid.show('Font size updated', ToastAndroid.SHORT);
           } else {
             Alert.alert('Success', 'Font size has been updated');
           }
-          
+
           // Close dialog if this was called from the dialog buttons
           updateDialogStates({ fontSizeVisible: false });
         }, 600);
-        
+
       } catch (error) {
         console.error('Failed to save font size setting:', error);
         updateLoadingStates({ fontSize: false });
@@ -612,10 +612,10 @@ export default function SettingsScreen() {
   const handleWifiOnlyToggle = async (value: boolean) => {
     updateLoadingStates({ wifiOnly: true });
     updateSettings({ downloadOnWifi: value });
-    
+
     try {
       await AsyncStorage.setItem('downloadOnWifi', value ? 'true' : 'false');
-      
+
       // Add a small delay to show the loading indicator
       setTimeout(() => {
         updateLoadingStates({ wifiOnly: false });
@@ -625,15 +625,15 @@ export default function SettingsScreen() {
       updateLoadingStates({ wifiOnly: false });
     }
   };
-  
+
   // Handle notifications toggle with loading indicator
   const handleNotificationsToggle = async (value: boolean) => {
     updateLoadingStates({ notifications: true });
     updateSettings({ notifications: value });
-    
+
     try {
       await AsyncStorage.setItem('notifications', value ? 'true' : 'false');
-      
+
       // Add a small delay to show the loading indicator
       setTimeout(() => {
         updateLoadingStates({ notifications: false });
@@ -650,7 +650,7 @@ export default function SettingsScreen() {
 
   const handleWebViewNavigationStateChange = (newNavState: any) => {
     const { url } = newNavState;
-    
+
     // Check if we've reached the settings page after login
     if (url.includes('wallhaven.cc/settings/account')) {
       // We're on the settings page, inject JS to extract the API key
@@ -689,18 +689,18 @@ export default function SettingsScreen() {
     if (inputApiKey && inputApiKey.trim() !== '') {
       try {
         updateAuthState({ loading: true });
-        
+
         // Set the API key to the API service
         wallhavenAPI.setApiKey(inputApiKey);
-        
+
         try {
           const settings = await wallhavenAPI.getUserSettings();
           await AsyncStorage.setItem('wallhavenApiKey', inputApiKey);
-          
+
           // Save username if available in response
           if (settings && settings.username) {
             await AsyncStorage.setItem('wallhavenUsername', settings.username);
-            updateAuthState({ 
+            updateAuthState({
               username: settings.username,
               apiKey: '',
               loading: false,
@@ -714,7 +714,7 @@ export default function SettingsScreen() {
               hasApiKey: true
             });
           }
-          
+
           // Show Material Design success dialog
           Alert.alert(
             'Success',
@@ -723,7 +723,7 @@ export default function SettingsScreen() {
               {
                 text: 'OK',
                 style: 'default',
-                onPress: () => {}
+                onPress: () => { }
               }
             ],
             {
@@ -740,7 +740,7 @@ export default function SettingsScreen() {
               {
                 text: 'OK',
                 style: 'default',
-                onPress: () => {}
+                onPress: () => { }
               }
             ],
             {
@@ -758,7 +758,7 @@ export default function SettingsScreen() {
             {
               text: 'OK',
               style: 'default',
-              onPress: () => {}
+              onPress: () => { }
             }
           ],
           {
@@ -777,7 +777,7 @@ export default function SettingsScreen() {
           {
             text: 'OK',
             style: 'default',
-            onPress: () => {}
+            onPress: () => { }
           }
         ],
         {
@@ -791,26 +791,26 @@ export default function SettingsScreen() {
   const handleRemoveApiKey = async () => {
     try {
       updateAuthState({ loading: true });
-      
+
       // Clear stored API key
       await AsyncStorage.removeItem('wallhavenApiKey');
-      
+
       // Reset Wallhaven API
       wallhavenAPI.setApiKey('');
-      
+
       // Also disable NSFW content since it requires an API key
       await AsyncStorage.setItem('showNsfwContent', 'false');
       updateSettings({ showNsfwContent: false });
-      
+
       // Update auth state
       updateAuthState({
         hasApiKey: false,
         loading: false
       });
-      
+
       // Call the API to force global NSFW settings update
       wallhavenAPI.updateNsfwFilter(false);
-      
+
       Alert.alert('Success', 'API key has been removed successfully.');
     } catch (error) {
       console.error('Failed to remove API key:', error);
@@ -823,11 +823,11 @@ export default function SettingsScreen() {
   const handleDownloadLocationChange = async (value: string) => {
     if (value === 'gallery' || value === 'private') {
       updateLoadingStates({ downloadLocation: true });
-      
+
       try {
         await AsyncStorage.setItem('downloadLocation', value);
         updateSettings({ downloadLocation: value as 'gallery' | 'private' });
-        
+
         // Show a brief loading indicator
         setTimeout(() => {
           updateLoadingStates({ downloadLocation: false });
@@ -838,7 +838,7 @@ export default function SettingsScreen() {
             Alert.alert('Success', 'Download location updated');
           }
         }, 600);
-        
+
       } catch (error) {
         console.error('Failed to save download location setting:', error);
         updateLoadingStates({ downloadLocation: false });
@@ -856,19 +856,19 @@ export default function SettingsScreen() {
             headerShadowVisible: false,
           }}
         />
-        
+
         <ScrollView>
           <Card style={[styles.userCard, { backgroundColor: paperTheme.colors.surfaceVariant }]} mode="elevated">
             <Card.Content>
               <View style={styles.userInfo}>
                 {authState.profileImage ? (
-                  <Avatar.Image 
+                  <Avatar.Image
                     size={60}
                     source={{ uri: authState.profileImage }}
                     style={{ backgroundColor: paperTheme.colors.primaryContainer }}
                   />
                 ) : (
-                  <Avatar.Image 
+                  <Avatar.Image
                     size={60}
                     source={require('@/assets/images/shiori.png')}
                     style={{ backgroundColor: paperTheme.colors.primaryContainer }}
@@ -887,8 +887,8 @@ export default function SettingsScreen() {
                 </View>
               </View>
               {authState.hasApiKey ? (
-                <Button 
-                  mode="contained" 
+                <Button
+                  mode="contained"
                   style={[styles.signInButton, { backgroundColor: paperTheme.colors.primary }]}
                   onPress={handleSignOut}
                   loading={authState.loading}
@@ -898,14 +898,14 @@ export default function SettingsScreen() {
                   Sign Out
                 </Button>
               ) : (
-                <Button 
-                  mode="contained" 
+                <Button
+                  mode="contained"
                   style={[styles.signInButton, { backgroundColor: paperTheme.colors.primary }]}
                   onPress={handleWallhavenAuth}
                   loading={authState.loading}
                   disabled={authState.loading || authState.hasApiKey}
                   labelStyle={{ fontSize: fontSizes.body, fontFamily: 'Nunito-SemiBold', color: paperTheme.colors.onPrimary }}
-                  icon={({size, color}) => (
+                  icon={({ size, color }) => (
                     <Key variant="Broken" size={20} color={paperTheme.colors.onPrimary} />
                   )}
                 >
@@ -914,17 +914,17 @@ export default function SettingsScreen() {
               )}
             </Card.Content>
           </Card>
-          
+
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>
                 APPEARANCE
               </Text>
-              
+
               <View style={styles.themeOptions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
-                    styles.themeOption, 
+                    styles.themeOption,
                     theme === 'light' && styles.selectedTheme,
                     theme === 'light' && { borderColor: paperTheme.colors.primary },
                     { backgroundColor: paperTheme.colors.surfaceVariant }
@@ -936,9 +936,9 @@ export default function SettingsScreen() {
                     Light
                   </ThemedText>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
-                    styles.themeOption, 
+                    styles.themeOption,
                     theme === 'dark' && styles.selectedTheme,
                     theme === 'dark' && { borderColor: paperTheme.colors.primary },
                     { backgroundColor: paperTheme.colors.surfaceVariant }
@@ -950,9 +950,9 @@ export default function SettingsScreen() {
                     Dark
                   </ThemedText>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
-                    styles.themeOption, 
+                    styles.themeOption,
                     theme === 'amoled' && styles.selectedTheme,
                     theme === 'amoled' && { borderColor: paperTheme.colors.primary },
                     { backgroundColor: paperTheme.colors.surfaceVariant }
@@ -965,30 +965,30 @@ export default function SettingsScreen() {
                   </ThemedText>
                 </TouchableOpacity>
               </View>
-              
+
               <List.Item
                 title="Font Size"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description={`${settings.fontSize.charAt(0).toUpperCase() + settings.fontSize.slice(1)} text scaling`}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Setting2 variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => updateDialogStates({ fontSizeVisible: true })}
               />
             </Card.Content>
           </Card>
-          
+
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>DOWNLOADS</Text>
-              
+
               <List.Item
                 title="Download on Wi-Fi Only"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Save mobile data by downloading only on Wi-Fi"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Wifi variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
@@ -997,7 +997,7 @@ export default function SettingsScreen() {
                       <ActivityIndicator size={24} color={paperTheme.colors.primary} />
                     </View>
                   ) : (
-                    <AnimatedSwitch 
+                    <AnimatedSwitch
                       value={settings.downloadOnWifi}
                       onValueChange={handleWifiOnlyToggle}
                     />
@@ -1005,13 +1005,13 @@ export default function SettingsScreen() {
                 )}
                 disabled={loadingStates.wifiOnly}
               />
-              
+
               <List.Item
                 title="High Quality Images"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Load higher resolution thumbnails and previews"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Star variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
@@ -1020,7 +1020,7 @@ export default function SettingsScreen() {
                       <ActivityIndicator size={24} color={paperTheme.colors.primary} />
                     </View>
                   ) : (
-                    <AnimatedSwitch 
+                    <AnimatedSwitch
                       value={settings.highQualityThumbs}
                       onValueChange={handleHighQualityToggle}
                     />
@@ -1028,28 +1028,28 @@ export default function SettingsScreen() {
                 )}
                 disabled={loadingStates.highQuality}
               />
-              
+
               <List.Item
                 title="Download Location"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description={settings.downloadLocation === 'gallery' ? 'Save to Gallery (Shiori album)' : 'Save to App\'s Private Folder'}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Folder variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => updateDialogStates({ downloadLocationVisible: true })}
-                right={props => loadingStates.downloadLocation ? 
-                  <ActivityIndicator size="small" color={paperTheme.colors.primary} style={{ marginRight: 8}} /> : 
+                right={props => loadingStates.downloadLocation ?
+                  <ActivityIndicator size="small" color={paperTheme.colors.primary} style={{ marginRight: 8 }} /> :
                   <List.Icon {...props} icon="chevron-right" />}
                 disabled={loadingStates.downloadLocation}
               />
-              
+
               <List.Item
                 title="Auto-download on Favorite"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Automatically download wallpapers when marked as favorite"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Star variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
@@ -1058,7 +1058,7 @@ export default function SettingsScreen() {
                       <ActivityIndicator size={24} color={paperTheme.colors.primary} />
                     </View>
                   ) : (
-                    <AnimatedSwitch 
+                    <AnimatedSwitch
                       value={settings.autoDownloadOnFavorite}
                       onValueChange={handleAutoDownloadToggle}
                     />
@@ -1068,17 +1068,17 @@ export default function SettingsScreen() {
               />
             </Card.Content>
           </Card>
-          
+
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>SHARING</Text>
-              
+
               <List.Item
                 title="Share to PC"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Share wallpapers to your computer"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Share variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => {
@@ -1092,17 +1092,17 @@ export default function SettingsScreen() {
               />
             </Card.Content>
           </Card>
-          
+
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>WALLHAVEN API</Text>
-              
+
               <List.Item
                 title="API Key"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description={authState.hasApiKey ? 'API key is set and active' : 'No API key set'}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Key variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => updateAuthState({ wallhavenAuthVisible: true })}
@@ -1127,10 +1127,10 @@ export default function SettingsScreen() {
                           'This will remove your Wallhaven API key and disable NSFW content.',
                           [
                             { text: 'Cancel', style: 'cancel' },
-                            { 
-                              text: 'Remove', 
+                            {
+                              text: 'Remove',
                               style: 'destructive',
-                              onPress: handleRemoveApiKey 
+                              onPress: handleRemoveApiKey
                             }
                           ]
                         );
@@ -1141,13 +1141,13 @@ export default function SettingsScreen() {
                   </View>
                 ) : null}
               />
-              
+
               <List.Item
                 title="Show NSFW Content"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description={authState.hasApiKey ? "Enable to show NSFW and sketchy content (requires API key)" : "API key required to view NSFW and sketchy content"}
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Eye variant="Broken" size={size} color={color} />
                 )} />}
                 right={() => (
@@ -1156,7 +1156,7 @@ export default function SettingsScreen() {
                       <ActivityIndicator size={24} color={paperTheme.colors.primary} />
                     </View>
                   ) : (
-                    <AnimatedSwitch 
+                    <AnimatedSwitch
                       value={settings.showNsfwContent}
                       onValueChange={handleNsfwToggle}
                       disabled={!authState.hasApiKey}
@@ -1167,17 +1167,17 @@ export default function SettingsScreen() {
               />
             </Card.Content>
           </Card>
-          
+
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>STORAGE</Text>
-              
+
               <List.Item
                 title="Clear Cache"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Free up space by clearing cached images"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Trash variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={clearCache}
@@ -1188,13 +1188,13 @@ export default function SettingsScreen() {
                 ) : null}
                 disabled={loadingStates.cache}
               />
-              
+
               <List.Item
                 title="Clear Favorites"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Remove all your favorite wallpapers"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Trash variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={clearFavorites}
@@ -1207,38 +1207,64 @@ export default function SettingsScreen() {
               />
             </Card.Content>
           </Card>
-          
+
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>ABOUT</Text>
-              
+
               <List.Item
                 title="About Shiori"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Version 1.0.0"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <InfoCircle variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={showAbout}
               />
-              
+
               <List.Item
                 title="Rate the App"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Enjoying Shiori? Let us know!"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Star variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={showRateApp}
               />
-                  <List.Item
+              <List.Item
                 title="Contact Us"
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Send feedback or report issues"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
+                  <Message variant="Broken" size={size} color={color} />
+                )} />}
+                onPress={() => router.push('/(tabs)/bug-report')}
+              />
+              <List.Item
+                title="Buy me a Coffee!"
+                titleStyle={{ fontSize: fontSizes.body }}
+                description="Help fuel the code by donating any amount"
+                descriptionStyle={{ fontSize: fontSizes.caption }}
+                left={props => (
+                  <List.Icon
+                    {...props}
+                    icon={({ size, color }) => (
+                      <Coffee variant="Broken" size={size} color={color} />
+                    )}
+                  />
+                )}
+                onPress={() => Linking.openURL('https://www.ko-fi.com/brianalicodes')}
+              />
+
+              <List.Item
+                title="Contact Us"
+                titleStyle={{ fontSize: fontSizes.body }}
+                description="Send feedback or report issues"
+                descriptionStyle={{ fontSize: fontSizes.caption }}
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <Message variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={() => router.push('/(tabs)/bug-report')}
@@ -1249,7 +1275,7 @@ export default function SettingsScreen() {
                 titleStyle={{ fontSize: fontSizes.body }}
                 description="Go through the app introduction again"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({size, color}) => (
+                left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <InfoCircle variant="Broken" size={size} color={color} />
                 )} />}
                 onPress={async () => {
@@ -1260,7 +1286,7 @@ export default function SettingsScreen() {
             </Card.Content>
           </Card>
         </ScrollView>
-        
+
         <Portal>
           <Dialog visible={authState.wallhavenAuthVisible} onDismiss={() => updateAuthState({ wallhavenAuthVisible: false })}>
             <Dialog.Title style={{ fontSize: fontSizes.h3 }}>Connect to Wallhaven</Dialog.Title>
@@ -1275,10 +1301,10 @@ export default function SettingsScreen() {
                   <Text style={{ marginBottom: 20, fontSize: fontSizes.body }}>
                     You have two options to connect with your Wallhaven account:
                   </Text>
-                  
-                  <Button 
-                    mode="contained" 
-                    icon={({size, color}) => (
+
+                  <Button
+                    mode="contained"
+                    icon={({ size, color }) => (
                       <ArrowRight2 variant="Broken" size={18} color={color} />
                     )}
                     onPress={openWallhavenWebsite}
@@ -1287,10 +1313,10 @@ export default function SettingsScreen() {
                   >
                     Open Wallhaven Website
                   </Button>
-                  
-                  <Button 
+
+                  <Button
                     mode="outlined"
-                    icon={({size, color}) => (
+                    icon={({ size, color }) => (
                       <Key variant="Broken" size={18} color={color} />
                     )}
                     onPress={showManualKeyDialog}
@@ -1298,7 +1324,7 @@ export default function SettingsScreen() {
                   >
                     Enter API Key Manually
                   </Button>
-                  
+
                   <Text style={{ marginTop: 20, opacity: 0.7, fontSize: fontSizes.caption }}>
                     1. Sign in on the Wallhaven website{'\n'}
                     2. Go to your Settings → Account{'\n'}
@@ -1312,7 +1338,7 @@ export default function SettingsScreen() {
               <Button onPress={() => updateAuthState({ wallhavenAuthVisible: false })} labelStyle={{ fontSize: fontSizes.body }}>Close</Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           <Dialog
             visible={manualKeyDialogVisible}
             onDismiss={() => setManualKeyDialogVisible(false)}
@@ -1335,13 +1361,13 @@ export default function SettingsScreen() {
               </Text>
             </Dialog.Content>
             <Dialog.Actions>
-              <Button 
+              <Button
                 onPress={() => setManualKeyDialogVisible(false)}
                 textColor={paperTheme.colors.onSurface}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onPress={handleManualApiKeySave}
                 loading={authState.loading}
                 disabled={authState.loading}
@@ -1351,25 +1377,25 @@ export default function SettingsScreen() {
               </Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           <Dialog visible={dialogStates.fontSizeVisible} onDismiss={() => updateDialogStates({ fontSizeVisible: false })}>
             <Dialog.Title style={{ fontSize: fontSizes.h3 }}>Font Size</Dialog.Title>
             <Dialog.Content>
               <RadioButton.Group onValueChange={handleFontSizeChange} value={settings.fontSize}>
                 <View style={[styles.fontSizeOption, { marginBottom: 16, alignItems: 'center', height: 48 }]}>
-                  <RadioButton.Item 
-                    label="Small" 
-                    value="small" 
+                  <RadioButton.Item
+                    label="Small"
+                    value="small"
                     position="leading"
-                    style={[styles.radioItem, { height: 48 }]} 
+                    style={[styles.radioItem, { height: 48 }]}
                     labelStyle={{ fontSize: fontSizes.bodySmall }}
                   />
                   <Text style={[styles.fontSizeExample, { fontSize: fontSizes.bodySmall }]}>Aa</Text>
                 </View>
                 <View style={[styles.fontSizeOption, { marginBottom: 16, alignItems: 'center', height: 48 }]}>
-                  <RadioButton.Item 
-                    label="Medium" 
-                    value="medium" 
+                  <RadioButton.Item
+                    label="Medium"
+                    value="medium"
                     position="leading"
                     style={[styles.radioItem, { height: 48 }]}
                     labelStyle={{ fontSize: fontSizes.body }}
@@ -1377,9 +1403,9 @@ export default function SettingsScreen() {
                   <Text style={[styles.fontSizeExample, { fontSize: fontSizes.body }]}>Aa</Text>
                 </View>
                 <View style={[styles.fontSizeOption, { marginBottom: 20, alignItems: 'center', height: 48 }]}>
-                  <RadioButton.Item 
-                    label="Large" 
-                    value="large" 
+                  <RadioButton.Item
+                    label="Large"
+                    value="large"
                     position="leading"
                     style={[styles.radioItem, { height: 48 }]}
                     labelStyle={{ fontSize: fontSizes.h4 }}
@@ -1396,13 +1422,13 @@ export default function SettingsScreen() {
               <Button onPress={() => handleFontSizeChange(settings.fontSize)} labelStyle={{ fontSize: fontSizes.body }}>Apply</Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           {/* Download Location Dialog */}
-          <Dialog visible={dialogStates.downloadLocationVisible} onDismiss={() => updateDialogStates({ downloadLocationVisible: false })}> 
+          <Dialog visible={dialogStates.downloadLocationVisible} onDismiss={() => updateDialogStates({ downloadLocationVisible: false })}>
             <Dialog.Title style={{ fontSize: fontSizes.h3 }}>Download Location</Dialog.Title>
             <Dialog.Content>
               <RadioButton.Group onValueChange={handleDownloadLocationChange} value={settings.downloadLocation}>
-                <RadioButton.Item 
+                <RadioButton.Item
                   label="Gallery (Recommended)"
                   value="gallery"
                   position="leading"
@@ -1410,8 +1436,8 @@ export default function SettingsScreen() {
                   labelStyle={{ fontSize: fontSizes.body }}
                 />
                 <Text style={[styles.radioDescription, { fontSize: fontSizes.caption }]}>Saves wallpapers to your device's gallery in a 'Shiori' album.</Text>
-                
-                <RadioButton.Item 
+
+                <RadioButton.Item
                   label="App's Private Folder"
                   value="private"
                   position="leading"
@@ -1425,7 +1451,7 @@ export default function SettingsScreen() {
               <Button onPress={() => updateDialogStates({ downloadLocationVisible: false })} labelStyle={{ fontSize: fontSizes.body }}>Cancel</Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           {/* Theme loading overlay */}
           {loadingStates.theme && (
             <View style={styles.loadingOverlay}>
@@ -1435,7 +1461,7 @@ export default function SettingsScreen() {
               </Surface>
             </View>
           )}
-          
+
           {/* Font size loading overlay */}
           {loadingStates.fontSize && (
             <View style={styles.loadingOverlay}>
@@ -1445,7 +1471,7 @@ export default function SettingsScreen() {
               </Surface>
             </View>
           )}
-          
+
           <Dialog
             visible={clearFavoritesDialogVisible}
             onDismiss={() => setClearFavoritesDialogVisible(false)}
@@ -1464,7 +1490,7 @@ export default function SettingsScreen() {
               </Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           <Dialog
             visible={clearCacheDialogVisible}
             onDismiss={() => setClearCacheDialogVisible(false)}
@@ -1507,7 +1533,7 @@ export default function SettingsScreen() {
               </Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           <Dialog
             visible={aboutDialogVisible}
             onDismiss={() => setAboutDialogVisible(false)}
@@ -1533,7 +1559,7 @@ export default function SettingsScreen() {
               </View>
             </Dialog.Content>
             <Dialog.Actions style={{ justifyContent: 'center', paddingBottom: 16 }}>
-              <Button 
+              <Button
                 mode="contained"
                 onPress={() => setAboutDialogVisible(false)}
                 style={{ minWidth: 100 }}
@@ -1542,7 +1568,7 @@ export default function SettingsScreen() {
               </Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           <Dialog
             visible={contactDialogVisible}
             onDismiss={() => setContactDialogVisible(false)}
@@ -1555,11 +1581,11 @@ export default function SettingsScreen() {
               <Text variant="bodyMedium" style={{ textAlign: 'center', marginTop: 8 }}>
                 We'd love to hear from you! Please send your feedback or report issues to:
               </Text>
-              <Text 
-                variant="bodyMedium" 
-                style={{ 
-                  textAlign: 'center', 
-                  marginTop: 8, 
+              <Text
+                variant="bodyMedium"
+                style={{
+                  textAlign: 'center',
+                  marginTop: 8,
                   color: paperTheme.colors.primary,
                   fontFamily: 'Nunito-SemiBold'
                 }}
@@ -1568,7 +1594,7 @@ export default function SettingsScreen() {
               </Text>
             </Dialog.Content>
             <Dialog.Actions style={{ justifyContent: 'center' }}>
-              <Button 
+              <Button
                 onPress={() => setContactDialogVisible(false)}
                 style={{ minWidth: 100 }}
               >
@@ -1576,7 +1602,7 @@ export default function SettingsScreen() {
               </Button>
             </Dialog.Actions>
           </Dialog>
-          
+
           <Dialog
             visible={rateAppDialogVisible}
             onDismiss={() => setRateAppDialogVisible(false)}
@@ -1591,13 +1617,13 @@ export default function SettingsScreen() {
               </Text>
             </Dialog.Content>
             <Dialog.Actions style={{ justifyContent: 'center' }}>
-              <Button 
+              <Button
                 onPress={() => setRateAppDialogVisible(false)}
                 style={{ minWidth: 100 }}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onPress={() => {
                   Linking.openURL('https://github.com/brianali-codes/shiori');
                   setRateAppDialogVisible(false);

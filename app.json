@@ -4,7 +4,7 @@
     "slug": "shiori",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/shiori-icon.png",
+    "icon": "./assets/images/shiori.png",
     "scheme": "shiori",
     "userInterfaceStyle": "automatic",
     "splash": {
