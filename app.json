@@ -21,11 +21,15 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.brianali.shiori",
       "jsEngine": "hermes",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Shiori needs permission to save wallpapers to your photo library.",
+        "NSPhotoLibraryAddUsageDescription": "Shiori needs permission to save wallpapers to your photo library."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/shiori-icon.png",
+        "foregroundImage": "./assets/images/shiori.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.brianali.shiori",
@@ -35,6 +39,7 @@
       "buildType": "apk",
       "permissions": [
         "INTERNET",
+        "READ_MEDIA_IMAGES",
         "WRITE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE"
       ]
@@ -42,17 +47,27 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/shiori-icon.png"
+      "favicon": "./assets/images/shiori.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/shiori-icon.png",
+          "image": "./assets/images/shiori.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Shiori to access your photos to save wallpapers.",
+          "savePhotosPermission": "Allow Shiori to save wallpapers to your photo gallery.",
+          "isAccessMediaLocationEnabled": true
         }
       ]
     ],

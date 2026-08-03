@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View,  RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity, Dimensions } from 'react-native';
-import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip} from 'react-native-paper';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity, Dimensions } from 'react-native';
+import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -34,27 +34,19 @@ const MasonryGrid: React.FC<{
   refreshControl?: React.ReactElement;
   ListFooterComponent?: () => React.ReactElement | null;
 }> = ({ data, renderItem, refreshControl, ListFooterComponent }) => {
-  const [columnHeights, setColumnHeights] = useState<number[]>(Array(COLUMN_COUNT).fill(0));
   const [columns, setColumns] = useState<MasonryItem[][]>(Array(COLUMN_COUNT).fill([]).map(() => []));
 
   useEffect(() => {
-    // Reset columns when data changes
     const newColumns: MasonryItem[][] = Array(COLUMN_COUNT).fill([]).map(() => []);
     const newColumnHeights = Array(COLUMN_COUNT).fill(0);
 
     data.forEach((item) => {
-      // Find the shortest column
       const shortestColumnIndex = newColumnHeights.indexOf(Math.min(...newColumnHeights));
-      
-      // Add item to the shortest column
       newColumns[shortestColumnIndex].push(item);
-      
-      // Update column height (add item height + margin)
       newColumnHeights[shortestColumnIndex] += item.height + ITEM_MARGIN;
     });
 
     setColumns(newColumns);
-    setColumnHeights(newColumnHeights);
   }, [data]);
 
   const renderColumn = (columnData: MasonryItem[], columnIndex: number) => (
@@ -64,10 +56,7 @@ const MasonryGrid: React.FC<{
   );
 
   return (
-    <ScrollView
-      refreshControl={refreshControl}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView refreshControl={refreshControl} showsVerticalScrollIndicator={false}>
       <View style={styles.masonryContainer}>
         {columns.map((columnData, columnIndex) => renderColumn(columnData, columnIndex))}
       </View>
@@ -91,17 +80,15 @@ export default function ExploreScreen() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const theme = useTheme();
 
-  // Load NSFW setting and favorites on component mount
+  // Load NSFW setting and favorites on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // Load NSFW setting
         const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
         if (nsfwSetting !== null) {
           setShowNsfwContent(nsfwSetting === 'true');
         }
-        
-        // Load favorites
+
         const savedFavorites = await AsyncStorage.getItem('favorites');
         if (savedFavorites) {
           const parsedFavorites = JSON.parse(savedFavorites);
@@ -111,7 +98,7 @@ export default function ExploreScreen() {
         console.error('Failed to load settings:', error);
       }
     };
-    
+
     loadSettings();
   }, []);
 
@@ -129,40 +116,35 @@ export default function ExploreScreen() {
     { id: 'asc', label: 'Ascending' },
   ];
 
-  // Function to calculate item height based on aspect ratio
   const calculateItemHeight = (resolution: string): number => {
     const [width, height] = resolution.split('x').map(Number);
-    if (!width || !height) return 200; // fallback height
-    
+    if (!width || !height) return 200;
+
     const aspectRatio = height / width;
     const calculatedHeight = ITEM_WIDTH * aspectRatio;
-    
-    // Add some constraints to prevent extremely tall or short items
+
     const minHeight = 150;
     const maxHeight = 400;
-    
+
     return Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
   };
-  
+
   const toggleFavorite = async (wallpaper: WallpaperPreview) => {
     try {
       const savedFavorites = await AsyncStorage.getItem('favorites');
       let favoritesArray: WallpaperPreview[] = [];
-      
+
       if (savedFavorites) {
         favoritesArray = JSON.parse(savedFavorites);
       }
-      
-      // Check if already in favorites
+
       const isFavorite = favorites.includes(wallpaper.id);
-      
+
       if (isFavorite) {
-        // Remove from favorites
-        const updatedFavorites = favoritesArray.filter(item => item.id !== wallpaper.id);
+        const updatedFavorites = favoritesArray.filter((item) => item.id !== wallpaper.id);
         await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-        setFavorites(updatedFavorites.map(item => item.id));
+        setFavorites(updatedFavorites.map((item) => item.id));
       } else {
-        // Add to favorites
         favoritesArray.push(wallpaper);
         await AsyncStorage.setItem('favorites', JSON.stringify(favoritesArray));
         setFavorites([...favorites, wallpaper.id]);
@@ -172,90 +154,88 @@ export default function ExploreScreen() {
     }
   };
 
-  const loadWallpapers = async (isRefreshing = false) => {
-    try {
-      if (isRefreshing) {
-        setPage(1);
-        setHasMore(true);
-      }
-      
-      setLoading(true);
-      
-      // Check if trying to access NSFW content without API key
-      if (showNsfwContent && !wallhavenAPI.hasApiKey()) {
-        Alert.alert(
-          'API Key Required', 
-          'You need to set a Wallhaven API key in Settings to access NSFW content.',
-          [{ text: 'OK' }]
-        );
-      }
-      
-      const response = await wallhavenAPI.search({
-        q: searchQuery,
-        sorting: selectedSort as any,
-        order: selectedOrder as any,
-        page: isRefreshing ? 1 : page,
-        purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100',
-      });
+  // Memoized fetch function with proper state bindings
+  const fetchWallpapers = useCallback(
+    async (targetPage: number, isRefresh = false) => {
+      try {
+        if (!isRefresh && targetPage === 1) {
+          setLoading(true);
+        }
 
-      // Enhance wallpapers with height and unique ID for masonry layout
-      const wallpapersWithMasonryData: MasonryItem[] = response.data.map((wallpaper, index) => ({
-        ...wallpaper,
-        height: calculateItemHeight(wallpaper.resolution),
-        uniqueId: `${wallpaper.id}_${Date.now()}_${index}`
-      }));
+        if (showNsfwContent && !wallhavenAPI.hasApiKey()) {
+          Alert.alert(
+            'API Key Required',
+            'You need to set a Wallhaven API key in Settings to access NSFW content.',
+            [{ text: 'OK' }]
+          );
+        }
 
-      if (isRefreshing) {
+        const response = await wallhavenAPI.search({
+          q: searchQuery,
+          sorting: selectedSort as any,
+          order: selectedOrder as any,
+          page: targetPage,
+          purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100',
+        });
+
+        const wallpapersWithMasonryData: MasonryItem[] = response.data.map((wallpaper, index) => ({
+          ...wallpaper,
+          height: calculateItemHeight(wallpaper.resolution),
+          uniqueId: `${wallpaper.id}_${targetPage}_${index}`,
+        }));
+
         setWallpapers(wallpapersWithMasonryData);
-      } else {
-        // Replace previous wallpapers with new ones instead of appending
-        setWallpapers(wallpapersWithMasonryData);
+        setHasMore(response.data.length > 0);
+      } catch (error) {
+        console.error('Error loading wallpapers:', error);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
       }
+    },
+    [searchQuery, selectedSort, selectedOrder, showNsfwContent]
+  );
 
-      if (response.data.length === 0) {
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.error('Error loading wallpapers:', error);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
+  // Single Effect triggered on filter or query change -> resets to page 1 and fetches
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1); // Will trigger the page effect below
+    } else {
+      fetchWallpapers(1);
+    }
+  }, [searchQuery, selectedSort, selectedOrder, showNsfwContent]);
+
+  // Single Effect for pagination changes
+  useEffect(() => {
+    fetchWallpapers(page);
+  }, [page, fetchWallpapers]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      await fetchWallpapers(1, true);
     }
   };
 
   const loadMore = () => {
     if (!loadingMore && hasMore) {
       setLoadingMore(true);
-      setPage(prev => prev + 1);
+      setPage((prev) => prev + 1);
     }
   };
 
   const loadPrevious = () => {
-    if (page > 1) {
+    if (page > 1 && !loadingMore) {
       setLoadingMore(true);
-      setPage(prev => prev - 1);
+      setPage((prev) => prev - 1);
     }
-  };
-
-  useEffect(() => {
-    loadWallpapers();
-  }, [page]);
-
-  useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-    loadWallpapers(true);
-  }, [searchQuery, selectedSort, selectedOrder, showNsfwContent]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadWallpapers(true);
-    setRefreshing(false);
   };
 
   const downloadWallpaper = async (wallpaper: WallpaperPreview) => {
     try {
-      // Check permissions
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
@@ -263,23 +243,19 @@ export default function ExploreScreen() {
           'Shiori needs storage permission to save wallpapers to your device.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Settings', onPress: () => Linking.openSettings() }
+            { text: 'Settings', onPress: () => Linking.openSettings() },
           ]
         );
         return;
       }
 
-      // Get download location preference
-      const downloadLocation = await AsyncStorage.getItem('downloadLocation') || 'gallery';
-      
-      // Generate a unique filename with timestamp to avoid conflicts
+      const downloadLocation = (await AsyncStorage.getItem('downloadLocation')) || 'gallery';
       const timestamp = new Date().getTime();
       const fileName = `shiori_${wallpaper.id}_${timestamp}.${wallpaper.file_type.split('/')[1] || 'jpg'}`;
-      
+
       let fileUri: string;
-      
+
       if (downloadLocation === 'gallery') {
-        // Download to temporary directory first
         const tempUri = FileSystem.cacheDirectory + fileName;
         const downloadResumable = FileSystem.createDownloadResumable(
           wallpaper.thumbs.large,
@@ -289,10 +265,8 @@ export default function ExploreScreen() {
         const result = await downloadResumable.downloadAsync();
         if (!result) throw new Error('Download failed');
 
-        // Save to media library
         const asset = await MediaLibrary.createAssetAsync(result.uri);
-        
-        // Try to save to album
+
         try {
           const album = await MediaLibrary.getAlbumAsync('Shiori');
           if (album) {
@@ -303,25 +277,22 @@ export default function ExploreScreen() {
         } catch (error) {
           console.error('Album error:', error);
         }
-        
-        // Clean up temp file
+
         await FileSystem.deleteAsync(tempUri);
-        
+
         if (Platform.OS === 'android') {
           ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
         } else {
           Alert.alert('Success', 'Wallpaper saved to your gallery');
         }
       } else {
-        // Download to app's private directory
         const privateDir = FileSystem.documentDirectory + 'wallpapers/';
-        
-        // Ensure directory exists
+
         const dirInfo = await FileSystem.getInfoAsync(privateDir);
         if (!dirInfo.exists) {
           await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
         }
-        
+
         fileUri = privateDir + fileName;
         const downloadResumable = FileSystem.createDownloadResumable(
           wallpaper.thumbs.large,
@@ -347,27 +318,26 @@ export default function ExploreScreen() {
 
   const renderWallpaper = (item: MasonryItem, index: number) => {
     const isFavorite = favorites.includes(item.id);
-    
+
     return (
-      <Card 
-        key={item.uniqueId} 
-        style={[styles.wallpaperCard, { height: item.height }]} 
+      <Card
+        key={item.uniqueId}
+        style={[styles.wallpaperCard, { height: item.height }]}
         mode="elevated"
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => router.push(`/wallpaper/${item.id}`)}
           activeOpacity={0.9}
           style={styles.touchableContainer}
         >
           <View style={styles.wallpaperContainer}>
-            <Card.Cover 
-              source={{ uri: item.thumbs.large }} 
-              style={[styles.wallpaperImage, { height: item.height }]} 
+            <Card.Cover
+              source={{ uri: item.thumbs.large }}
+              style={[styles.wallpaperImage, { height: item.height }]}
             />
-            
-            {/* Glassmorphic buttons */}
+
             <View style={styles.buttonContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => toggleFavorite(item)}
               >
@@ -375,13 +345,13 @@ export default function ExploreScreen() {
                   <Heart
                     size={22}
                     color="#FFFFFF"
-                    variant={isFavorite ? "Bold" : "Broken"}
+                    variant={isFavorite ? 'Bold' : 'Broken'}
                     style={styles.heartIcon}
                   />
                 </BlurView>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => downloadWallpaper(item)}
               >
@@ -395,8 +365,7 @@ export default function ExploreScreen() {
                 </BlurView>
               </TouchableOpacity>
             </View>
-            
-            {/* Image info overlay */}
+
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.7)']}
               style={styles.infoGradient}
@@ -440,7 +409,7 @@ export default function ExploreScreen() {
           </View>
 
           <View style={styles.filterContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.filterHeaderButton}
               onPress={() => setFiltersExpanded(!filtersExpanded)}
             >
@@ -475,16 +444,16 @@ export default function ExploreScreen() {
                       onPress={() => setSelectedSort(sort.id)}
                       style={[
                         styles.sortChip,
-                        selectedSort === sort.id && { 
+                        selectedSort === sort.id && {
                           backgroundColor: theme.colors.primaryContainer,
-                          borderColor: theme.colors.primary
-                        }
+                          borderColor: theme.colors.primary,
+                        },
                       ]}
                       textStyle={[
-                        selectedSort === sort.id && { 
+                        selectedSort === sort.id && {
                           color: theme.colors.primary,
-                          fontFamily: 'Nunito-Bold'
-                        }
+                          fontFamily: 'Nunito-Bold',
+                        },
                       ]}
                     >
                       {sort.label}
@@ -506,16 +475,16 @@ export default function ExploreScreen() {
                       onPress={() => setSelectedOrder(order.id)}
                       style={[
                         styles.orderChip,
-                        selectedOrder === order.id && { 
+                        selectedOrder === order.id && {
                           backgroundColor: theme.colors.primaryContainer,
-                          borderColor: theme.colors.primary
-                        }
+                          borderColor: theme.colors.primary,
+                        },
                       ]}
                       textStyle={[
-                        selectedOrder === order.id && { 
+                        selectedOrder === order.id && {
                           color: theme.colors.primary,
-                          fontFamily: 'Nunito-Bold'
-                        }
+                          fontFamily: 'Nunito-Bold',
+                        },
                       ]}
                     >
                       {order.label}
@@ -537,12 +506,12 @@ export default function ExploreScreen() {
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
-              ListFooterComponent={() => (
+              ListFooterComponent={() =>
                 hasMore ? (
                   <View style={styles.loadMoreContainer}>
                     <View style={styles.paginationButtons}>
                       {page > 1 && (
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={[styles.paginationButton, { backgroundColor: theme.colors.surfaceVariant }]}
                           onPress={loadPrevious}
                           disabled={loadingMore}
@@ -553,8 +522,8 @@ export default function ExploreScreen() {
                           </Text>
                         </TouchableOpacity>
                       )}
-                      
-                      <TouchableOpacity 
+
+                      <TouchableOpacity
                         style={[styles.paginationButton, { backgroundColor: theme.colors.surfaceVariant }]}
                         onPress={loadMore}
                         disabled={loadingMore}
@@ -573,7 +542,7 @@ export default function ExploreScreen() {
                     </View>
                   </View>
                 ) : null
-              )}
+              }
             />
           )}
         </View>
@@ -657,10 +626,9 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justify: 'center',
     alignItems: 'center',
   },
-  // Masonry Grid Styles
   masonryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -755,7 +723,5 @@ const styles = StyleSheet.create({
     minWidth: 120,
     height: 40,
   },
-  paginationText: {
-    color: '#000000', // This will be overridden by the inline style
-  },
+  paginationText: {},
 });

@@ -131,7 +131,23 @@ function TabBar() {
           headerShown: false,
         }}
       />
+
+      <Tabs.Screen
+        name="premium"
+        options={{
+          title: 'Premium',
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={styles.tabItem}>
+              <Setting size={22} color={color} variant={focused ? "Bold" : "Broken"} />
+              {focused && <Text style={[styles.tabLabel, { color }]}>Premium</Text>}
+            </View>
+          ),
+          headerShown: false,
+        }}
+      />
     </Tabs>
+
+    
   );
 }
 

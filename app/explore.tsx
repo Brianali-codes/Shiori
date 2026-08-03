@@ -5,7 +5,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemedView } from '@/components/ThemedComponents';
 import { WallpaperCard } from '@/components/ui/WallpaperCard';
-import { wallhavenAPI, WallpaperPreview } from './services/wallhaven';
+import { wallhavenAPI, WallpaperPreview } from '../services/wallhaven';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');

@@ -1,41 +1,65 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState, useRef } from 'react';
-import { Image, StyleSheet, View, Dimensions, ActivityIndicator, TouchableOpacity, Share, Animated, Platform, Alert, Linking, ToastAndroid } from 'react-native';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { ThemedView, ThemedText, ThemedScrollView } from '@/components/ThemedComponents';
+import React, { useEffect, useState } from 'react';
+import {
+  Image,
+  StyleSheet,
+  View,
+  Dimensions,
+  ActivityIndicator,
+  Share,
+  Platform,
+  Alert,
+  Linking,
+  ToastAndroid,
+  TouchableOpacity,
+} from 'react-native';
+import { ThemedView, ThemedScrollView } from '@/components/ThemedComponents';
 import { wallhavenAPI, WallpaperPreview } from '../services/wallhaven';
-import { Chip, FAB, IconButton, Surface, Text, useTheme, Divider, Button, Portal, Dialog, Avatar, ProgressBar } from 'react-native-paper';
+import {
+  Chip,
+  Surface,
+  Text,
+  useTheme,
+  Button,
+  Portal,
+  Dialog,
+  ProgressBar,
+} from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useThemeContext } from '../../contexts/ThemeContext';
-import { fontStyles } from '../../utils/fontStyles';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DocumentDownload, Heart, Share as ShareIcon, ArrowLeft, Back, ArrowDown2, Personalcard, ArrowCircleDown2, Category, Star1, Eye, DocumentUpload, ArrowLeft2 } from 'iconsax-react-nativejs';
+import {
+  Heart,
+  Share as ShareIcon,
+  Category,
+  Star1,
+  Eye,
+  DocumentUpload,
+  ArrowLeft2,
+  ArrowCircleDown2,
+  Image as ImageIcon,
+  Tag as TagIcon,
+  Maximize4,
+} from 'iconsax-react-nativejs';
 import NetInfo from '@react-native-community/netinfo';
-import { Stack } from 'expo-router';
-import { Image as Image1 } from 'iconsax-react-nativejs';
-
-export const options = {
-  headerShown: false,
-};
 
 const { width, height } = Dimensions.get('window');
+const FAVORITES_STORAGE_KEY = '@shiori_favorites';
 
 export default function WallpaperScreen() {
   const { id } = useLocalSearchParams();
   const paperTheme = useTheme();
   const { theme } = useThemeContext();
-  const isDark = theme === 'dark';
   const router = useRouter();
-  const scrollY = useRef(new Animated.Value(0)).current;
+
   const [wallpaper, setWallpaper] = useState<WallpaperPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [showFullscreen, setShowFullscreen] = useState(false);
   const [downloadDialogVisible, setDownloadDialogVisible] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -43,14 +67,7 @@ export default function WallpaperScreen() {
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState('original');
-
-  
-  // Calculate header opacity based on scroll position
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100, 200],
-    outputRange: [0, 0.5, 1],
-    extrapolate: 'clamp',
-  });
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     const fetchWallpaperDetails = async () => {
@@ -58,6 +75,7 @@ export default function WallpaperScreen() {
         setLoading(true);
         const data = await wallhavenAPI.getWallpaper(id as string);
         setWallpaper(data);
+        await checkIfFavorite(id as string);
       } catch (error) {
         console.error('Failed to fetch wallpaper details:', error);
       } finally {
@@ -68,9 +86,50 @@ export default function WallpaperScreen() {
     fetchWallpaperDetails();
   }, [id]);
 
-  const toggleFavorite = () => {
+  const checkIfFavorite = async (wallpaperId: string) => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      if (storedFavorites) {
+        const favoritesList: WallpaperPreview[] = JSON.parse(storedFavorites);
+        const exists = favoritesList.some((item) => item.id === wallpaperId);
+        setIsFavorite(exists);
+      }
+    } catch (error) {
+      console.error('Error checking favorites:', error);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!wallpaper) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsFavorite(!isFavorite);
+
+    try {
+      const storedFavorites = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      let favoritesList: WallpaperPreview[] = storedFavorites
+        ? JSON.parse(storedFavorites)
+        : [];
+
+      if (isFavorite) {
+        favoritesList = favoritesList.filter((item) => item.id !== wallpaper.id);
+        setIsFavorite(false);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Removed from Favorites', ToastAndroid.SHORT);
+        }
+      } else {
+        favoritesList.push(wallpaper);
+        setIsFavorite(true);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Saved to Favorites', ToastAndroid.SHORT);
+        }
+      }
+
+      await AsyncStorage.setItem(
+        FAVORITES_STORAGE_KEY,
+        JSON.stringify(favoritesList)
+      );
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   const shareWallpaper = async () => {
@@ -78,7 +137,9 @@ export default function WallpaperScreen() {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         await Share.share({
-          message: `Check out this wallpaper: ${wallpaper.short_url || wallpaper.url}`,
+          message: `Check out this wallpaper on Shiori: ${
+            wallpaper.short_url || wallpaper.url
+          }`,
           url: wallpaper.url,
         });
       } catch (error) {
@@ -87,40 +148,16 @@ export default function WallpaperScreen() {
     }
   };
 
-  const showDownloadOptions = () => {
+  const handleTagPress = (tagName: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setDownloadDialogVisible(true);
-  };
-
-  const checkPermissions = async () => {
-    if (Platform.OS === 'android' || Platform.OS === 'ios') {
-      try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        
-        if (status !== 'granted') {
-          Alert.alert(
-            'Permission Required',
-            'Shiori needs storage permission to save wallpapers to your device.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Settings', onPress: () => Linking.openSettings() }
-            ]
-          );
-          return false;
-        }
-        return true;
-      } catch (error) {
-        console.error('Error requesting permissions:', error);
-        Alert.alert('Permission Error', 'Could not request storage permissions');
-        return false;
-      }
-    }
-    return true;
+    router.push({
+      pathname: '/(tabs)/explore',
+      params: { q: tagName },
+    });
   };
 
   const getDownloadUrl = (quality: string): string => {
     if (!wallpaper) return '';
-    
     switch (quality) {
       case 'original':
         return wallpaper.path;
@@ -133,28 +170,78 @@ export default function WallpaperScreen() {
     }
   };
 
-  const getFileNameForQuality = (quality: string): string => {
-    if (!wallpaper) return '';
-    
-    const fileExtension = wallpaper.path.split('.').pop() || 'jpg';
-    return `shiori_${wallpaper.id}_${quality}.${fileExtension}`;
+  const saveFileLocally = async (quality = 'original') => {
+    if (!wallpaper) return null;
+    const downloadUrl = getDownloadUrl(quality);
+    const timestamp = new Date().getTime();
+    const fileName = `shiori_${wallpaper.id}_${quality}_${timestamp}.${
+      wallpaper.file_type.split('/')[1] || 'jpg'
+    }`;
+    const tempUri = FileSystem.cacheDirectory + fileName;
+
+    const downloadResumable = FileSystem.createDownloadResumable(
+      downloadUrl,
+      tempUri,
+      {},
+      (downloadProgress) => {
+        const progress =
+          downloadProgress.totalBytesWritten /
+          downloadProgress.totalBytesExpectedToWrite;
+        setDownloadProgress(progress);
+      }
+    );
+
+    const result = await downloadResumable.downloadAsync();
+    return result?.uri || null;
+  };
+
+  /**
+   * Safely handles permission requests before creating media assets/albums.
+   */
+  const saveAndApplyWallpaper = async (fileUri: string) => {
+    try {
+      // 1. Request permissions explicitly
+      const permission = await MediaLibrary.requestPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission Required',
+          'Shiori needs media library permissions to create albums and set wallpapers.'
+        );
+        return null;
+      }
+
+      // 2. ONLY call getAlbumAsync / createAssetAsync AFTER status === 'granted'
+      let album = await MediaLibrary.getAlbumAsync('Shiori');
+      const asset = await MediaLibrary.createAssetAsync(fileUri);
+
+      if (!album) {
+        album = await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      }
+
+      // 3. Fetch detailed asset info
+      const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
+      console.log('Successfully saved wallpaper asset:', assetInfo);
+
+      return assetInfo;
+    } catch (error) {
+      console.error('Apply wallpaper error:', error);
+      throw error;
+    }
   };
 
   const downloadWallpaper = async (quality = 'original') => {
     if (!wallpaper) return;
-    
+
     setSelectedResolution(quality);
     setDownloadDialogVisible(false);
-    
-    // Check permissions
-    const hasPermission = await checkPermissions();
-    if (!hasPermission) return;
-    
-    // Check if download on WiFi only is enabled
-    const downloadOnWifi = await AsyncStorage.getItem('downloadOnWifi') === 'true';
-    
+
+    const downloadOnWifi =
+      (await AsyncStorage.getItem('downloadOnWifi')) === 'true';
+
     if (downloadOnWifi) {
-      // Check network type
       const netInfo = await NetInfo.fetch();
       if (netInfo.type !== 'wifi') {
         if (Platform.OS === 'android') {
@@ -166,102 +253,28 @@ export default function WallpaperScreen() {
       }
     }
 
-    // Start downloading
     setDownloading(true);
     setDownloadProgress(0);
     setDownloadError(null);
-    
-    const downloadUrl = getDownloadUrl(quality);
-    // Generate a unique filename with timestamp to avoid conflicts
-    const timestamp = new Date().getTime();
-    const fileName = `shiori_${wallpaper.id}_${quality}_${timestamp}.${wallpaper.file_type.split('/')[1] || 'jpg'}`;
-    
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      // Get download location preference
-      const downloadLocation = await AsyncStorage.getItem('downloadLocation') || 'gallery';
-      
-      if (downloadLocation === 'gallery') {
-        // Download to temporary directory first
-        const tempUri = FileSystem.cacheDirectory + fileName;
-        const downloadResumable = FileSystem.createDownloadResumable(
-          downloadUrl,
-          tempUri,
-          {},
-          (downloadProgress) => {
-            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-            setDownloadProgress(progress);
-          }
-        );
+      const localUri = await saveFileLocally(quality);
 
-        const result = await downloadResumable.downloadAsync();
-        if (!result || !result.uri) {
-          throw new Error('Download failed - no file URI returned');
-        }
-        
-        // Save to media library
-        const asset = await MediaLibrary.createAssetAsync(result.uri);
-        
-        // Try to save to album
-        try {
-          const album = await MediaLibrary.getAlbumAsync('Shiori');
-          if (album) {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-          } else {
-            await MediaLibrary.createAlbumAsync('Shiori', asset, false);
-          }
-        } catch (albumError) {
-          console.error('Album error:', albumError);
-        }
-        
-        // Clean up temp file
-        await FileSystem.deleteAsync(tempUri);
-        
-        // Success notification
+      if (!localUri) throw new Error('Download failed - invalid URI');
+
+      const savedAssetInfo = await saveAndApplyWallpaper(localUri);
+
+      if (savedAssetInfo) {
+        await FileSystem.deleteAsync(localUri, { idempotent: true });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
+
         if (Platform.OS === 'android') {
           ToastAndroid.show(`Wallpaper saved to gallery (${quality})`, ToastAndroid.SHORT);
         } else {
           Alert.alert('Success', `Wallpaper saved to your gallery (${quality})`);
         }
-      } else {
-        // Download to app's private directory
-        const privateDir = FileSystem.documentDirectory + 'wallpapers/';
-        
-        // Ensure directory exists
-        const dirInfo = await FileSystem.getInfoAsync(privateDir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
-        }
-        
-        const fileUri = privateDir + fileName;
-        const downloadResumable = FileSystem.createDownloadResumable(
-          downloadUrl,
-          fileUri,
-          {},
-          (downloadProgress) => {
-            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-            setDownloadProgress(progress);
-          }
-        );
-
-        const result = await downloadResumable.downloadAsync();
-        if (!result || !result.uri) {
-          throw new Error('Download failed - no file URI returned');
-        }
-        
-        // Success notification
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
-        if (Platform.OS === 'android') {
-          ToastAndroid.show(`Wallpaper saved to app storage (${quality})`, ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', `Wallpaper saved to app storage (${quality})`);
-        }
       }
-      
     } catch (error: any) {
       console.error('Download error:', error);
       setDownloadError(`Failed to download the image: ${error.message}`);
@@ -271,448 +284,387 @@ export default function WallpaperScreen() {
     }
   };
 
-  const openInWebView = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowFallbackDialog(false);
-    setWebViewVisible(true);
-  };
-
-  const closeWebView = () => {
-    setWebViewVisible(false);
-  };
-
-  const applyWallpaper = () => {
-    // Implement wallpaper setting functionality
+  /**
+   * Downloads wallpaper and redirects Android users to set it via Intent.
+   */
+  const applyWallpaper = async () => {
+    if (!wallpaper) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    console.log('Applying wallpaper as background');
+
+    setApplying(true);
+    try {
+      const localUri = await saveFileLocally('original');
+      if (!localUri) throw new Error('Failed to cache image');
+
+      const assetInfo = await saveAndApplyWallpaper(localUri);
+      await FileSystem.deleteAsync(localUri, { idempotent: true });
+
+      if (assetInfo) {
+        if (Platform.OS === 'android') {
+          const contentUri = assetInfo.localUri || assetInfo.uri;
+
+          try {
+            await Linking.sendIntent('android.intent.action.ATTACH_DATA', [
+              {
+                data: contentUri,
+                type: 'image/*',
+              },
+            ]);
+          } catch {
+            try {
+              await Linking.sendIntent('android.intent.action.VIEW', [
+                {
+                  data: contentUri,
+                  type: 'image/*',
+                },
+              ]);
+              ToastAndroid.show('Tap options (⋮) and select "Set as wallpaper"', ToastAndroid.LONG);
+            } catch {
+              ToastAndroid.show('Saved to gallery! Set wallpaper via your Photos app.', ToastAndroid.LONG);
+            }
+          }
+        } else {
+          Alert.alert(
+            'Wallpaper Saved',
+            'Image saved to your Photos app. You can set it as your wallpaper via iOS Settings.'
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error('Apply wallpaper error:', error);
+      Alert.alert('Error', 'Failed to prepare wallpaper image.');
+    } finally {
+      setApplying(false);
+    }
   };
-
-  const toggleFullscreen = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowFullscreen(!showFullscreen);
-  };
-
-  // Animated header background
-  const AnimatedSurface = Animated.createAnimatedComponent(Surface);
-  
-  // Render WebView as fallback
-  const renderWebView = () => (
-    <Portal>
-      <Dialog visible={webViewVisible} onDismiss={closeWebView} style={{ maxHeight: height * 0.9, width: '95%' }}>
-        <Dialog.Title>Save Image Manually</Dialog.Title>
-        <Dialog.Content>
-          <Text style={{ marginBottom: 16, lineHeight: 20 }}>
-            The direct download failed. Please use these steps to save the image manually:
-            {'\n\n'}
-            <Text style={{ fontWeight: 'bold' }}>• Long press</Text> on the image when it loads
-            {'\n'}
-            <Text style={{ fontWeight: 'bold' }}>• Select "Save Image"</Text> from the menu
-            {'\n\n'}
-            If the image doesn't load properly below, you can also try opening it in your browser.
-          </Text>
-          <View style={{ height: height * 0.6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', borderRadius: 8, overflow: 'hidden' }}>
-            <WebView
-              source={{ uri: getDownloadUrl(selectedResolution) }}
-              style={{ width: '100%', height: '100%' }}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              startInLoadingState={true}
-              cacheEnabled={true}
-              renderLoading={() => (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color={paperTheme.colors.primary} />
-                  <Text style={{ marginTop: 16, textAlign: 'center' }}>Loading image...</Text>
-                </View>
-              )}
-              onError={(syntheticEvent) => {
-                const { nativeEvent } = syntheticEvent;
-                console.error('WebView error:', nativeEvent);
-              }}
-            />
-          </View>
-        </Dialog.Content>
-        <Dialog.Actions>
-          <Button onPress={() => Linking.openURL(getDownloadUrl(selectedResolution))}>Open in Browser</Button>
-          <Button onPress={closeWebView}>Close</Button>
-        </Dialog.Actions>
-      </Dialog>
-    </Portal>
-  );
-
-  // Improve the fallback dialog with clearer options
-  const renderFallbackDialog = () => (
-    <Dialog visible={showFallbackDialog} onDismiss={() => setShowFallbackDialog(false)}>
-      <Dialog.Title>Download Failed</Dialog.Title>
-      <Dialog.Content>
-        <Text style={{ marginBottom: 16, lineHeight: 20 }}>
-          The download could not be completed.
-          {downloadError ? `\n\nError: ${downloadError}` : ''}
-          {'\n\nWould you like to try an alternative method?'}
-        </Text>
-      </Dialog.Content>
-      <Dialog.Actions>
-        <Button onPress={() => setShowFallbackDialog(false)}>Cancel</Button>
-        <Button onPress={openInWebView}>Try Manual Download</Button>
-      </Dialog.Actions>
-    </Dialog>
-  );
-
-  // Render download progress dialog
-  const renderDownloadProgress = () => (
-    <Portal>
-      <Dialog visible={downloading} dismissable={false}>
-        <Dialog.Title>Downloading Wallpaper</Dialog.Title>
-        <Dialog.Content>
-          <ProgressBar progress={downloadProgress} color={paperTheme.colors.primary} style={{ marginVertical: 20 }} />
-          <Text>{Math.round(downloadProgress * 100)}%</Text>
-        </Dialog.Content>
-      </Dialog>
-    </Portal>
-  );
 
   return (
-    
-    
     <ThemedView style={styles.container}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      
-      {/* Back Button */}
-      <View style={{ position: 'absolute', top: 40, left: 12, zIndex: 10 }}>
-        <IconButton
-          icon={() => (
-            <ArrowLeft2
-              size={24} 
-              color="white" 
-              variant="Broken"
-              style={styles.backIcon} 
-            />
-          )}
-          size={40}
+      <StatusBar style="light" translucent />
+
+      {/* Floating Header */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity
+          style={styles.circleIconButton}
           onPress={() => router.back()}
-          style={styles.backButton}
-        />
-      </View>
-      
-      {/* Header Action Buttons */}
-      <View style={{ position: 'absolute', top: 40, right: 12, zIndex: 10, flexDirection: 'row' }}>
-        <IconButton
-          icon={() => (
-            <Heart 
-              size={24} 
-              color="white" 
-              variant={isFavorite ? "Bold" : "Broken"}
-              style={styles.headerIcon} 
+          activeOpacity={0.8}
+        >
+          <ArrowLeft2 size={22} color="#FFFFFF" variant="Broken" />
+        </TouchableOpacity>
+
+        <View style={styles.topRightGroup}>
+          <TouchableOpacity
+            style={styles.circleIconButton}
+            onPress={toggleFavorite}
+            activeOpacity={0.8}
+          >
+            <Heart
+              size={22}
+              color={isFavorite ? '#FF5252' : '#FFFFFF'}
+              variant={isFavorite ? 'Bold' : 'Broken'}
             />
-          )}
-          size={40}
-          onPress={toggleFavorite}
-          style={styles.iconButton}
-        />
-        <IconButton
-          icon={() => (
-            <ShareIcon 
-              size={24} 
-              color="white" 
-              variant="Broken"
-            />
-          )}
-          size={40}
-          onPress={shareWallpaper}
-          style={styles.iconButton}
-        />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.circleIconButton}
+            onPress={shareWallpaper}
+            activeOpacity={0.8}
+          >
+            <ShareIcon size={22} color="#FFFFFF" variant="Broken" />
+          </TouchableOpacity>
+        </View>
       </View>
-      
+
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={paperTheme.colors.primary} />
-          <Text style={styles.loadingText}>Loading wallpaper...</Text>
+          <Text style={styles.loadingText}>Loading wallpaper details...</Text>
         </View>
       ) : wallpaper ? (
         <>
-          <ThemedScrollView 
+          <ThemedScrollView
             style={styles.scrollView}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: false }
-            )}
-            scrollEventThrottle={16}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <TouchableOpacity activeOpacity={0.9} onPress={toggleFullscreen}>
+            {/* Top Image Showcase */}
+            <View style={styles.heroImageContainer}>
               <Image
                 source={{ uri: wallpaper.path }}
-                style={styles.image}
+                style={styles.heroImage}
                 resizeMode="cover"
               />
               <LinearGradient
-                colors={['rgba(0,0,0,0.7)', 'transparent', 'transparent', 'rgba(0,0,0,0.7)']}
-                style={styles.imageGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
+                colors={['rgba(0,0,0,0.5)', 'transparent', paperTheme.colors.background]}
+                locations={[0, 0.6, 1]}
+                style={styles.heroGradient}
               />
-            </TouchableOpacity>
-            
-            <Surface style={styles.infoCard}>
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                    <Image1
-                      size={22}
-                      color="#FFFFFF"
-                      variant="Broken"
-                      style={styles.metaIcon}
-                    />
-                  <View>
-                    <Text style={styles.metaLabel}>RESOLUTION</Text>
-                    <Text style={styles.resolutionText}>{wallpaper.resolution}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.metaItem}>
-                    <Category
-                      size={22}
-                      color="#FFFFFF"
-                      variant="Broken"
-                      style={styles.metaIcon}
-                    />
-                  <View>
-                    <Text style={styles.metaLabel}>CATEGORY</Text>
-                    <Text style={styles.categoryText}>
-                      {wallpaper.category.charAt(0).toUpperCase() + wallpaper.category.slice(1)}
+            </View>
+
+            {/* Content Details Panel */}
+            <View style={styles.contentContainer}>
+              {/* Primary Stats Grid */}
+              <Surface
+                style={[
+                  styles.card,
+                  { backgroundColor: paperTheme.colors.surfaceVariant + '70' },
+                ]}
+                elevation={0}
+              >
+                <View style={styles.statsRow}>
+                  <View style={styles.statBox}>
+                    <Maximize4 size={20} color={paperTheme.colors.primary} />
+                    <Text variant="titleMedium" style={styles.statValue}>
+                      {wallpaper.resolution}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.statLabel}>
+                      Resolution
                     </Text>
                   </View>
-                </View>
-                
-                <View style={styles.metaItem}>
-                  <Star1
-                      size={22}
-                      color="#FFFFFF"
-                      variant="Broken"
-                      style={styles.metaIcon}
-                    />
-                  <View>
-                    <Text style={styles.metaLabel}>PURITY</Text>
-                    <Text style={styles.purityText}>
+
+                  <View style={styles.verticalDivider} />
+
+                  <View style={styles.statBox}>
+                    <Category size={20} color={paperTheme.colors.primary} />
+                    <Text variant="titleMedium" style={styles.statValue}>
+                      {wallpaper.category}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.statLabel}>
+                      Category
+                    </Text>
+                  </View>
+
+                  <View style={styles.verticalDivider} />
+
+                  <View style={styles.statBox}>
+                    <Star1 size={20} color={paperTheme.colors.primary} />
+                    <Text variant="titleMedium" style={styles.statValue}>
                       {wallpaper.purity.toUpperCase()}
                     </Text>
+                    <Text variant="bodySmall" style={styles.statLabel}>
+                      Purity
+                    </Text>
                   </View>
                 </View>
-              </View>
-              
-              <Divider style={styles.divider} />
-              
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                <Heart
-                      size={22}
-                      color="#FFFFFF"
-                      variant="Broken"
-                      style={styles.metaIcon}
-                    />
-                  <View>
-                    <Text style={styles.metaLabel}>FAVORITES</Text>
-                    <Text style={styles.favoritesText}>{wallpaper.favorites}</Text>
+
+                <View style={styles.horizontalDivider} />
+
+                <View style={styles.statsRow}>
+                  <View style={styles.statBox}>
+                    <Eye size={18} color={paperTheme.colors.onSurfaceVariant} />
+                    <Text variant="bodyMedium" style={styles.subStatValue}>
+                      {wallpaper.views.toLocaleString()}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.statLabel}>
+                      Views
+                    </Text>
                   </View>
-                </View>
-                
-                <View style={styles.metaItem}>
-                  <Eye
-                      size={22}
-                      color="#FFFFFF"
-                      variant="Broken"
-                      style={styles.metaIcon}
-                    />
-                  <View>
-                    <Text style={styles.metaLabel}>VIEWS</Text>
-                    <Text style={styles.viewsText}>{wallpaper.views}</Text>
+
+                  <View style={styles.statBox}>
+                    <Heart size={18} color={paperTheme.colors.onSurfaceVariant} />
+                    <Text variant="bodyMedium" style={styles.subStatValue}>
+                      {wallpaper.favorites.toLocaleString()}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.statLabel}>
+                      Favorites
+                    </Text>
                   </View>
-                </View>
-                
-                {wallpaper.uploader && (
-                  <View style={styles.metaItem}>
-                    <DocumentUpload
-                      size={22}
-                      color="#FFFFFF"
-                      variant="Broken"
-                      style={styles.metaIcon}
-                    />
-                    <View>
-                      <Text style={styles.metaLabel}>UPLOADER</Text>
-                      <Text style={styles.uploaderText}>{wallpaper.uploader.username}</Text>
+
+                  <View style={styles.statBox}>
+                    <ImageIcon size={18} color={paperTheme.colors.onSurfaceVariant} />
+                    <Text variant="bodyMedium" style={styles.subStatValue}>
+                      {(wallpaper.file_size / (1024 * 1024)).toFixed(1)} MB
+                    </Text>
+                    <Text variant="bodySmall" style={styles.statLabel}>
+                      Size
+                    </Text>
+                  </View>
+
+                  {wallpaper.uploader && (
+                    <View style={styles.statBox}>
+                      <DocumentUpload size={18} color={paperTheme.colors.onSurfaceVariant} />
+                      <Text
+                        variant="bodyMedium"
+                        style={styles.subStatValue}
+                        numberOfLines={1}
+                      >
+                        {wallpaper.uploader.username}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.statLabel}>
+                        Uploader
+                      </Text>
                     </View>
-                  </View>
-                )}
-              </View>
-              
-              <View style={styles.detailGrid}>
-                <View style={styles.detailItem}>
-                  <Text variant="labelSmall" style={styles.detailLabel}>Resolution</Text>
-                  <Text variant="bodyMedium" style={styles.detailValue}>{wallpaper.resolution}</Text>
+                  )}
                 </View>
-                
-                <View style={styles.detailItem}>
-                  <Text variant="labelSmall" style={styles.detailLabel}>Size</Text>
-                  <Text variant="bodyMedium" style={styles.detailValue}>
-                    {(wallpaper.file_size / (1024 * 1024)).toFixed(2)} MB
-                  </Text>
-                </View>
-                
-                <View style={styles.detailItem}>
-                  <Text variant="labelSmall" style={styles.detailLabel}>Ratio</Text>
-                  <Text variant="bodyMedium" style={styles.detailValue}>{wallpaper.ratio}</Text>
-                </View>
-                
-                <View style={styles.detailItem}>
-                  <Text variant="labelSmall" style={styles.detailLabel}>Type</Text>
-                  <Text variant="bodyMedium" style={styles.detailValue}>{wallpaper.file_type.split('/')[1]}</Text>
-                </View>
-              </View>
-              
+              </Surface>
+
+              {/* Color Palette */}
               {wallpaper.colors && wallpaper.colors.length > 0 && (
-                <>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>Colors</Text>
-                  <View style={styles.colorsContainer}>
-                    {wallpaper.colors.map((color, index) => (
+                <View style={styles.section}>
+                  <Text variant="titleSmall" style={styles.sectionHeader}>
+                    Color Palette
+                  </Text>
+                  <View style={styles.paletteRow}>
+                    {wallpaper.colors.map((hex, index) => (
                       <View
                         key={index}
-                        style={[styles.colorBox, { backgroundColor: color }]}
+                        style={[styles.colorSwatch, { backgroundColor: hex }]}
                       >
-                        <Text style={styles.colorText}>{color}</Text>
+                        <Text style={styles.colorHexText}>{hex}</Text>
                       </View>
                     ))}
                   </View>
-                </>
+                </View>
               )}
-              
+
+              {/* Interactive Tags */}
               {wallpaper.tags && wallpaper.tags.length > 0 && (
-                <>
-                  <Text variant="titleMedium" style={styles.sectionTitle}>Tags</Text>
-                  <View style={styles.tagsContainer}>
-                    {wallpaper.tags.map(tag => (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeaderRow}>
+                    <TagIcon size={16} color={paperTheme.colors.primary} />
+                    <Text variant="titleSmall" style={styles.sectionHeaderWithIcon}>
+                      Tags
+                    </Text>
+                  </View>
+                  <View style={styles.tagsFlexWrapper}>
+                    {wallpaper.tags.map((tag) => (
                       <Chip
                         key={tag.id}
-                        style={styles.tagChip}
                         mode="outlined"
+                        onPress={() => handleTagPress(tag.name)}
+                        style={styles.interactiveTag}
+                        textStyle={{ fontSize: 13 }}
                       >
-                        {tag.name}
+                        #{tag.name}
                       </Chip>
                     ))}
                   </View>
-                </>
-              )}
-            </Surface>
-            
-            <View style={styles.actions}>
-              <Button 
-                mode="contained" 
-                onPress={showDownloadOptions}
-                icon={() =>  
-                <ArrowCircleDown2
-                  size={24} 
-                  color="black" 
-                  variant="Broken"
-                />}
-                style={[styles.button, { backgroundColor: paperTheme.colors.primary }]}
-              >
-                Download
-              </Button>
-              
-              <Button 
-                mode="outlined" 
-                onPress={applyWallpaper}
-                icon={() => 
-                <Image1
-                  size={24} 
-                  color="white" 
-                  variant="Broken"
-                />}
-                style={styles.button}
-              >
-                Set as Wallpaper
-              </Button>
-            </View>
-
-            <View style={styles.footer} />
-          </ThemedScrollView>
-          
-          <FAB
-            icon={() => 
-              <ArrowCircleDown2
-              size={24} 
-              color="white" 
-              variant="Broken"
-            />
-            }
-            style={styles.fab}
-            onPress={showDownloadOptions}
-            mode="elevated"
-          />
-          
-          <Portal>
-            <Dialog visible={downloadDialogVisible} onDismiss={() => setDownloadDialogVisible(false)} style={styles.dialog}>
-              <Dialog.Title>Download Wallpaper</Dialog.Title>
-              <Dialog.Content>
-                <Text variant="bodyMedium">Select quality to download:</Text>
-                <View style={styles.downloadOptions}>
-                  <Button 
-                    mode="outlined" 
-                    onPress={() => downloadWallpaper('original')}
-                    style={styles.downloadButton}
-                    icon={() =>  
-                    <ArrowCircleDown2
-                      size={24} 
-                      color="white" 
-                      variant="Broken"
-                    />}
-                  >
-                    Original ({wallpaper.resolution})
-                  </Button>
-                  <Button 
-                    mode="outlined" 
-                    onPress={() => downloadWallpaper('large')}
-                    style={styles.downloadButton}
-                    icon={() => 
-                      <ArrowCircleDown2
-                      size={24} 
-                      color="white" 
-                      variant="Broken"
-                    />
-                    }
-                  >
-                    Large Thumbnail
-                  </Button>
-                  <Button 
-                    mode="outlined" 
-                    onPress={() => downloadWallpaper('small')}
-                    style={styles.downloadButton}
-                    icon={() => 
-                      <ArrowCircleDown2
-                      size={24} 
-                      color="white" 
-                      variant="Broken"
-                      style={styles.downloadButton}
-                    />
-                    }
-                  >
-                    Small Thumbnail
-                  </Button>
                 </View>
+              )}
+            </View>
+          </ThemedScrollView>
+
+          {/* Bottom Action Dock */}
+          <Surface style={styles.bottomDock} elevation={4}>
+            <Button
+              mode="contained"
+              onPress={() => setDownloadDialogVisible(true)}
+              icon={() => <ArrowCircleDown2 size={20} color="#FFFFFF" variant="Broken" />}
+              style={styles.primaryActionButton}
+              contentStyle={styles.actionButtonContent}
+            >
+              Download
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={applyWallpaper}
+              icon={() => (
+                <ImageIcon size={20} color={paperTheme.colors.primary} variant="Broken" />
+              )}
+              style={styles.secondaryActionButton}
+              contentStyle={styles.actionButtonContent}
+            >
+              Apply Wallpaper
+            </Button>
+          </Surface>
+
+          {/* Dialogs */}
+          <Portal>
+            <Dialog
+              visible={downloadDialogVisible}
+              onDismiss={() => setDownloadDialogVisible(false)}
+              style={styles.dialogContainer}
+            >
+              <Dialog.Title>Select Resolution</Dialog.Title>
+              <Dialog.Content>
+                <Button
+                  mode="outlined"
+                  onPress={() => downloadWallpaper('original')}
+                  style={styles.downloadOptionBtn}
+                >
+                  Original ({wallpaper.resolution})
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => downloadWallpaper('large')}
+                  style={styles.downloadOptionBtn}
+                >
+                  Large Preview
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => downloadWallpaper('small')}
+                  style={styles.downloadOptionBtn}
+                >
+                  Small Thumbnail
+                </Button>
               </Dialog.Content>
               <Dialog.Actions>
-                <Button onPress={() => setDownloadDialogVisible(false)}>Cancel</Button>
+                <Button onPress={() => setDownloadDialogVisible(false)}>
+                  Cancel
+                </Button>
               </Dialog.Actions>
             </Dialog>
-            
-            {renderDownloadProgress()}
-            {renderFallbackDialog()}
-            {renderWebView()}
+
+            <Dialog visible={downloading || applying} dismissable={false}>
+              <Dialog.Title>
+                {applying ? 'Preparing Wallpaper...' : 'Downloading...'}
+              </Dialog.Title>
+              <Dialog.Content>
+                <ProgressBar
+                  progress={downloadProgress}
+                  color={paperTheme.colors.primary}
+                  style={styles.progressBar}
+                />
+                <Text style={styles.progressPercentText}>
+                  {Math.round(downloadProgress * 100)}%
+                </Text>
+              </Dialog.Content>
+            </Dialog>
+
+            <Dialog
+              visible={showFallbackDialog}
+              onDismiss={() => setShowFallbackDialog(false)}
+            >
+              <Dialog.Title>Download Issue</Dialog.Title>
+              <Dialog.Content>
+                <Text>{downloadError || 'Could not download the file.'}</Text>
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={() => setShowFallbackDialog(false)}>Cancel</Button>
+                <Button
+                  onPress={() => {
+                    setShowFallbackDialog(false);
+                    setWebViewVisible(true);
+                  }}
+                >
+                  Manual Option
+                </Button>
+              </Dialog.Actions>
+            </Dialog>
+
+            <Dialog
+              visible={webViewVisible}
+              onDismiss={() => setWebViewVisible(false)}
+              style={styles.fullWebViewDialog}
+            >
+              <Dialog.Title>Long press image to save</Dialog.Title>
+              <Dialog.Content style={{ height: height * 0.55 }}>
+                <WebView source={{ uri: getDownloadUrl(selectedResolution) }} />
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={() => setWebViewVisible(false)}>Close</Button>
+              </Dialog.Actions>
+            </Dialog>
           </Portal>
         </>
       ) : (
-        <View style={styles.errorContainer}>
-          <IconSymbol name="exclamationmark.triangle" size={48} color={paperTheme.colors.error} />
-          <Text variant="titleMedium" style={styles.errorText}>
-            Could not load wallpaper
-          </Text>
-          <Button mode="contained" onPress={() => router.back()}>
+        <View style={styles.centerContainer}>
+          <Text variant="titleMedium">Wallpaper not found</Text>
+          <Button
+            mode="contained"
+            onPress={() => router.back()}
+            style={{ marginTop: 16 }}
+          >
             Go Back
           </Button>
         </View>
@@ -728,197 +680,185 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  animatedHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    zIndex: 5,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 120,
   },
-  backButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backIcon: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-  },
-  headerIcon: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-  },
-  iconButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  loadingContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
   loadingText: {
     marginTop: 12,
     opacity: 0.7,
   },
-  errorContainer: {
-    flex: 1,
+  topHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 52 : 40,
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  topRightGroup: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  circleIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  errorText: {
-    marginVertical: 12,
-    textAlign: 'center',
-  },
-  image: {
+  heroImageContainer: {
     width: width,
-    height: width * 1.5,
+    height: height * 0.55,
+    position: 'relative',
   },
-  imageGradient: {
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
   },
-  infoCard: {
-    margin: 12,
+  contentContainer: {
+    paddingHorizontal: 16,
+    marginTop: -24,
+  },
+  card: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    marginBottom: 20,
   },
-  metaRow: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  metaItem: {
-    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
-  metaIcon: {
-    marginRight: 8,
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
   },
-  metaLabel: {
+  statValue: {
+    fontWeight: '700',
+    marginTop: 4,
+    textTransform: 'capitalize',
+  },
+  subStatValue: {
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  statLabel: {
+    opacity: 0.6,
     fontSize: 10,
-    opacity: 0.7,
-    fontWeight: 'bold',
+    marginTop: 1,
   },
-  resolutionText: {
-    fontSize: 14,
-    fontWeight: '600',
+  verticalDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(150, 150, 150, 0.25)',
   },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
+  horizontalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(150, 150, 150, 0.25)',
+    marginVertical: 14,
   },
-  purityText: {
-    fontSize: 14,
-    fontWeight: '600',
+  section: {
+    marginBottom: 20,
   },
-  favoritesText: {
-    fontSize: 14,
-    fontWeight: '600',
+  sectionHeader: {
+    fontWeight: '700',
+    marginBottom: 10,
+    opacity: 0.8,
   },
-  viewsText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  uploaderText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  detailGrid: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginVertical: 8,
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
-  detailItem: {
-    width: '25%',
-    padding: 8,
+  sectionHeaderWithIcon: {
+    fontWeight: '700',
+    opacity: 0.8,
   },
-  detailLabel: {
-    opacity: 0.7,
-  },
-  detailValue: {
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  colorsContainer: {
+  paletteRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginVertical: 8,
+    gap: 8,
   },
-  colorBox: {
-    width: 50,
-    height: 50,
-    margin: 4,
+  colorSwatch: {
+    flex: 1,
+    height: 38,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  colorText: {
-    color: 'white',
-    fontSize: 10,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: 2,
-    borderRadius: 4,
+  colorHexText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 3,
   },
-  tagsContainer: {
+  tagsFlexWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginVertical: 8,
+    gap: 8,
   },
-  tagChip: {
-    margin: 4,
+  interactiveTag: {
+    borderRadius: 20,
   },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  button: {
-    flex: 1,
-    margin: 4,
-  },
-  footer: {
-    height: 10,
-  },
-  fab: {
+  bottomDock: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    flexDirection: 'row',
+    gap: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
-  dialog: {
-    maxWidth: 400,
-    alignSelf: 'center',
-    width: '90%',
+  primaryActionButton: {
+    flex: 1,
+    borderRadius: 12,
   },
-  downloadOptions: {
-    marginTop: 16,
+  secondaryActionButton: {
+    flex: 1,
+    borderRadius: 12,
   },
-  downloadButton: {
-    marginVertical: 8,
-  }
-}); 
+  actionButtonContent: {
+    height: 48,
+  },
+  dialogContainer: {
+    borderRadius: 16,
+  },
+  downloadOptionBtn: {
+    marginVertical: 4,
+  },
+  progressBar: {
+    marginVertical: 16,
+    borderRadius: 4,
+  },
+  progressPercentText: {
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  fullWebViewDialog: {
+    maxHeight: height * 0.8,
+  },
+});

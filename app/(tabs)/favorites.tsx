@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions} from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, View, FlatList, RefreshControl, ImageBackground, TouchableOpacity, Modal, Image, Dimensions } from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, IconButton, Button, Portal, FAB, Avatar } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ArrowDown, Heart, ArrowDown2, InfoCircle, CloseCircle, Trash, Grid3, Fatrows } from 'iconsax-react-nativejs';
+import { ArrowDown2, Heart, InfoCircle, CloseCircle, Trash, Grid3, Fatrows } from 'iconsax-react-nativejs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontSizes } from '@/constants/FontSizes';
@@ -14,13 +14,15 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 
 const { width, height } = Dimensions.get('window');
 
+const FAVORITES_STORAGE_KEY = '@shiori_favorites';
+
 export default function FavoritesScreen() {
   const [favorites, setFavorites] = useState<WallpaperPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperPreview | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
-  const [isGridLayout, setIsGridLayout] = useState(true); // New state for layout
+  const [isGridLayout, setIsGridLayout] = useState(true);
   const theme = useTheme();
   const colors = useThemeColors();
   const router = useRouter();
@@ -28,7 +30,8 @@ export default function FavoritesScreen() {
   const loadFavorites = async () => {
     try {
       setLoading(true);
-      const savedFavorites = await AsyncStorage.getItem('favorites');
+      // Updated key here
+      const savedFavorites = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
       if (savedFavorites) {
         const parsedFavorites = JSON.parse(savedFavorites);
         setFavorites(parsedFavorites);
@@ -52,7 +55,8 @@ export default function FavoritesScreen() {
   const removeFromFavorites = async (id: string) => {
     try {
       const updatedFavorites = favorites.filter(wallpaper => wallpaper.id !== id);
-      await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+      // Updated key here
+      await AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(updatedFavorites));
       setFavorites(updatedFavorites);
     } catch (error) {
       console.error('Error removing from favorites:', error);
@@ -78,17 +82,12 @@ export default function FavoritesScreen() {
     setIsGridLayout(!isGridLayout);
   };
 
-  // Use useFocusEffect to refresh favorites when the screen comes into focus
+  // Re-read storage whenever the user tab-switches to this screen
   useFocusEffect(
     useCallback(() => {
       loadFavorites();
     }, [])
   );
-
-  // Initial load
-  useEffect(() => {
-    loadFavorites();
-  }, []);
 
   const renderFavorite = ({ item }: { item: WallpaperPreview }) => (
     <TouchableOpacity 
@@ -97,7 +96,7 @@ export default function FavoritesScreen() {
     >
       <Card style={isGridLayout ? styles.favoriteCard : styles.listCard} mode="elevated">
         <ImageBackground
-          source={{ uri: item.thumbs.large }}
+          source={{ uri: item.thumbs?.large || item.thumbs?.small || item.path }}
           style={isGridLayout ? styles.favoriteImage : styles.listImage}
           imageStyle={isGridLayout ? styles.favoriteImageStyle : styles.listImageStyle}
         >
@@ -155,7 +154,7 @@ export default function FavoritesScreen() {
           </TouchableOpacity>
           
           <Image
-            source={{ uri: selectedWallpaper?.path || selectedWallpaper?.thumbs.original }}
+            source={{ uri: selectedWallpaper?.path || selectedWallpaper?.thumbs?.original }}
             style={styles.previewImage}
             resizeMode="contain"
           />
@@ -206,7 +205,7 @@ export default function FavoritesScreen() {
             </Text>
             <Button
               mode="contained"
-              onPress={() => {router.replace('/explore');}}
+              onPress={() => { router.replace('/explore'); }}
               style={styles.exploreButton}
               labelStyle={{ fontFamily: 'Nunito-Bold', fontSize: FontSizes.button }}
             >
@@ -277,7 +276,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
     borderRadius: 20,
     marginHorizontal: 15,
     marginTop: 10,
@@ -291,18 +289,16 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     color: '#ffffff',
-
     marginBottom: 2,
   },
   subtitle: {
     color: '#777',
   },
-   glassIcons: {
+  glassIcons: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 20,
     padding: 5,
-    backdropFilter: 'blur(10px)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
@@ -363,7 +359,6 @@ const styles = StyleSheet.create({
   favoriteContent: {
     padding: 12,
   },
-  // List layout styles
   listItemContainer: {
     marginHorizontal: 8,
     marginVertical: 4,
