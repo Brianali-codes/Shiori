@@ -40,6 +40,7 @@
       "permissions": [
         "INTERNET",
         "READ_MEDIA_IMAGES",
+        "READ_MEDIA_AUDIO",
         "WRITE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE"
       ]
@@ -66,7 +67,7 @@
         "expo-media-library",
         {
           "photosPermission": "Allow Shiori to access your photos to save wallpapers.",
-          "savePhotosPermission": "Allow Shiori to save wallpapers to your photo gallery.",
+          "saveToLibraryPermission": "Allow Shiori to save wallpapers to your photo gallery.",
           "isAccessMediaLocationEnabled": true
         }
       ]
