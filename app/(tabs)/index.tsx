@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, Alert } from 'react-native';
+import { StyleSheet, ScrollView, View, Image, TouchableOpacity, FlatList, Dimensions, Alert, RefreshControl } from 'react-native';
 import { SearchNormal1, ArchiveTick, Sort, Filter, Clock, Like1, More2, HeartCircle, Share } from 'iconsax-react-nativejs';
 import { Text, Card, Button, useTheme, Chip, IconButton } from 'react-native-paper';
 import { Image as Image1 } from 'iconsax-react-nativejs';
@@ -402,7 +402,18 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+        >
           <View style={styles.header}>
             <View style={styles.filterHeader2}>
               <ArchiveTick size={18} color={theme.colors.primary} variant="Broken" />
@@ -528,8 +539,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: 10,
+    marginBottom: 2,
   },
   sectionTitle: {
     fontFamily: 'Nunito-Bold',
@@ -700,7 +711,7 @@ const styles = StyleSheet.create({
   filterHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   glassIcons: {
     flexDirection: 'row',

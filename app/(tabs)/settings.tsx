@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import { useFontSizeContext } from '@/contexts/FontSizeContext';
 import * as FileSystem from 'expo-file-system';
+import { ExpoRouter } from 'expo-router';
+
 // Custom Animated Switch component
 interface AnimatedSwitchProps {
   value: boolean;
@@ -901,15 +903,16 @@ export default function SettingsScreen() {
                 <Button
                   mode="contained"
                   style={[styles.signInButton, { backgroundColor: paperTheme.colors.primary }]}
-                  onPress={handleWallhavenAuth}
+                  
                   loading={authState.loading}
                   disabled={authState.loading || authState.hasApiKey}
                   labelStyle={{ fontSize: fontSizes.body, fontFamily: 'Nunito-SemiBold', color: paperTheme.colors.onPrimary }}
                   icon={({ size, color }) => (
                     <Key variant="Broken" size={20} color={paperTheme.colors.onPrimary} />
                   )}
+                  onPress={() => Linking.openURL('https://https://brian-ali.netlify.app/')}
                 >
-                  Get Your API Key
+                  About Me.
                 </Button>
               )}
             </Card.Content>
@@ -1270,19 +1273,6 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/(tabs)/bug-report')}
               />
 
-              <List.Item
-                title="Revisit Onboarding"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description="Go through the app introduction again"
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <InfoCircle variant="Broken" size={size} color={color} />
-                )} />}
-                onPress={async () => {
-                  await AsyncStorage.setItem('hasCompletedOnboarding', '');
-                  router.replace('/onboarding');
-                }}
-              />
             </Card.Content>
           </Card>
         </ScrollView>
