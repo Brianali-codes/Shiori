@@ -189,4 +189,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Disclaimer
 
+Not all Features mentioned have been availed, Some are still being worked on 
