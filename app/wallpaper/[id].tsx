@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import * as Sharing from 'expo-sharing';
 import {
   Image,
   StyleSheet,
@@ -9,7 +10,6 @@ import {
   Share,
   Platform,
   Alert,
-  Linking,
   ToastAndroid,
   TouchableOpacity,
 } from 'react-native';
@@ -29,7 +29,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { useThemeContext } from '../../contexts/ThemeContext';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system'; 
 import * as MediaLibrary from 'expo-media-library';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -52,7 +52,9 @@ const { width, height } = Dimensions.get('window');
 const FAVORITES_STORAGE_KEY = '@shiori_favorites';
 
 export default function WallpaperScreen() {
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+
   const paperTheme = useTheme();
   const { theme } = useThemeContext();
   const router = useRouter();
@@ -69,21 +71,44 @@ export default function WallpaperScreen() {
   const [selectedResolution, setSelectedResolution] = useState('original');
   const [applying, setApplying] = useState(false);
 
+  const downloadResumableRef = useRef<FileSystem.DownloadResumable | null>(null);
+
   useEffect(() => {
+    let isMounted = true;
+
     const fetchWallpaperDetails = async () => {
+      if (!id) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const data = await wallhavenAPI.getWallpaper(id as string);
-        setWallpaper(data);
-        await checkIfFavorite(id as string);
+        const data = await wallhavenAPI.getWallpaper(id);
+        if (isMounted) {
+          if (data) {
+            setWallpaper(data);
+            await checkIfFavorite(id);
+          } else {
+            console.warn(`No data returned for wallpaper ID: ${id}`);
+          }
+        }
       } catch (error) {
-        console.error('Failed to fetch wallpaper details:', error);
+        console.error(`Failed to fetch wallpaper details for ID ${id}:`, error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchWallpaperDetails();
+
+    return () => {
+      isMounted = false;
+      if (downloadResumableRef.current) {
+        downloadResumableRef.current.cancelAsync().catch(() => {});
+        downloadResumableRef.current = null;
+      }
+    };
   }, [id]);
 
   const checkIfFavorite = async (wallpaperId: string) => {
@@ -91,7 +116,7 @@ export default function WallpaperScreen() {
       const storedFavorites = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
       if (storedFavorites) {
         const favoritesList: WallpaperPreview[] = JSON.parse(storedFavorites);
-        const exists = favoritesList.some((item) => item.id === wallpaperId);
+        const exists = favoritesList.some((item) => String(item.id) === String(wallpaperId));
         setIsFavorite(exists);
       }
     } catch (error) {
@@ -110,7 +135,7 @@ export default function WallpaperScreen() {
         : [];
 
       if (isFavorite) {
-        favoritesList = favoritesList.filter((item) => item.id !== wallpaper.id);
+        favoritesList = favoritesList.filter((item) => String(item.id) !== String(wallpaper.id));
         setIsFavorite(false);
         if (Platform.OS === 'android') {
           ToastAndroid.show('Removed from Favorites', ToastAndroid.SHORT);
@@ -160,26 +185,57 @@ export default function WallpaperScreen() {
     if (!wallpaper) return '';
     switch (quality) {
       case 'original':
-        return wallpaper.path;
+        return wallpaper.path || wallpaper.thumbs?.large || '';
       case 'large':
-        return wallpaper.thumbs.large;
+        return wallpaper.thumbs?.large || wallpaper.path || '';
       case 'small':
-        return wallpaper.thumbs.small;
+        return wallpaper.thumbs?.small || wallpaper.path || '';
       default:
-        return wallpaper.path;
+        return wallpaper.path || '';
     }
   };
 
-  const saveFileLocally = async (quality = 'original') => {
+  const cancelDownloadProcess = async () => {
+    if (downloadResumableRef.current) {
+      try {
+        await downloadResumableRef.current.cancelAsync();
+      } catch (e) {
+        console.warn('Error cancelling download:', e);
+      }
+      downloadResumableRef.current = null;
+    }
+    setDownloading(false);
+    setApplying(false);
+  };
+
+  const saveFileLocally = async (quality = 'original'): Promise<string | null> => {
     if (!wallpaper) return null;
     const downloadUrl = getDownloadUrl(quality);
-    const timestamp = new Date().getTime();
-    const fileName = `shiori_${wallpaper.id}_${quality}_${timestamp}.${
-      wallpaper.file_type.split('/')[1] || 'jpg'
-    }`;
-    const tempUri = FileSystem.cacheDirectory + fileName;
 
-    const downloadResumable = FileSystem.createDownloadResumable(
+    if (!downloadUrl) {
+      throw new Error('Image URL is missing or invalid');
+    }
+
+    const timestamp = new Date().getTime();
+
+    let ext = 'jpg';
+    if (wallpaper.file_type && wallpaper.file_type.includes('/')) {
+      ext = wallpaper.file_type.split('/')[1];
+    } else if (downloadUrl) {
+      const match = downloadUrl.match(/\.(jpg|jpeg|png|webp)(\?.*)?$/i);
+      if (match) ext = match[1].toLowerCase();
+    }
+
+    const cacheDir = FileSystem.cacheDirectory;
+    if (!cacheDir) {
+      throw new Error('Cache directory is unavailable');
+    }
+
+    const fileName = `shiori_${wallpaper.id}_${quality}_${timestamp}.${ext}`;
+    const cleanCacheDir = cacheDir.endsWith('/') ? cacheDir : `${cacheDir}/`;
+    const tempUri = `${cleanCacheDir}${fileName}`;
+
+    downloadResumableRef.current = FileSystem.createDownloadResumable(
       downloadUrl,
       tempUri,
       {},
@@ -187,47 +243,51 @@ export default function WallpaperScreen() {
         const progress =
           downloadProgress.totalBytesWritten /
           downloadProgress.totalBytesExpectedToWrite;
-        setDownloadProgress(progress);
+        setDownloadProgress(isNaN(progress) || progress < 0 ? 0 : progress);
       }
     );
 
-    const result = await downloadResumable.downloadAsync();
-    return result?.uri || null;
+    const result = await downloadResumableRef.current.downloadAsync();
+    downloadResumableRef.current = null;
+
+    if (!result?.uri) return null;
+
+    const fileInfo = await FileSystem.getInfoAsync(result.uri);
+    if (!fileInfo.exists) {
+      throw new Error('Downloaded file could not be verified in cache');
+    }
+
+    return result.uri;
   };
 
-  /**
-   * Safely handles permission requests before creating media assets/albums.
-   */
   const saveAndApplyWallpaper = async (fileUri: string) => {
     try {
-      // 1. Request permissions explicitly
-      const permission = await MediaLibrary.requestPermissionsAsync();
+      const permission = await MediaLibrary.requestPermissionsAsync(true);
 
       if (!permission.granted) {
         Alert.alert(
           'Permission Required',
-          'Shiori needs media library permissions to create albums and set wallpapers.'
+          'Shiori needs media library permissions to save wallpapers.'
         );
         return null;
       }
 
-      // 2. ONLY call getAlbumAsync / createAssetAsync AFTER status === 'granted'
       let album = await MediaLibrary.getAlbumAsync('Shiori');
       const asset = await MediaLibrary.createAssetAsync(fileUri);
 
       if (!album) {
         album = await MediaLibrary.createAlbumAsync('Shiori', asset, false);
       } else {
-        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        try {
+          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        } catch (albumError) {
+          console.warn('Could not add to album, saved to main gallery instead:', albumError);
+        }
       }
 
-      // 3. Fetch detailed asset info
-      const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
-      console.log('Successfully saved wallpaper asset:', assetInfo);
-
-      return assetInfo;
+      return await MediaLibrary.getAssetInfoAsync(asset);
     } catch (error) {
-      console.error('Apply wallpaper error:', error);
+      console.error('Save wallpaper error:', error);
       throw error;
     }
   };
@@ -277,66 +337,60 @@ export default function WallpaperScreen() {
       }
     } catch (error: any) {
       console.error('Download error:', error);
-      setDownloadError(`Failed to download the image: ${error.message}`);
+      setDownloadError(`Failed to download the image: ${error.message || 'Unknown error'}`);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Failed to download image', ToastAndroid.SHORT);
+      }
       setShowFallbackDialog(true);
     } finally {
       setDownloading(false);
     }
   };
 
-  /**
-   * Downloads wallpaper and redirects Android users to set it via Intent.
-   */
   const applyWallpaper = async () => {
     if (!wallpaper) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     setApplying(true);
+    setDownloadProgress(0);
+    let localUri: string | null = null;
+
     try {
-      const localUri = await saveFileLocally('original');
+      localUri = await saveFileLocally('original');
       if (!localUri) throw new Error('Failed to cache image');
 
-      const assetInfo = await saveAndApplyWallpaper(localUri);
-      await FileSystem.deleteAsync(localUri, { idempotent: true });
+      const isSharingAvailable = await Sharing.isAvailableAsync();
 
-      if (assetInfo) {
-        if (Platform.OS === 'android') {
-          const contentUri = assetInfo.localUri || assetInfo.uri;
-
-          try {
-            await Linking.sendIntent('android.intent.action.ATTACH_DATA', [
-              {
-                data: contentUri,
-                type: 'image/*',
-              },
-            ]);
-          } catch {
-            try {
-              await Linking.sendIntent('android.intent.action.VIEW', [
-                {
-                  data: contentUri,
-                  type: 'image/*',
-                },
-              ]);
-              ToastAndroid.show('Tap options (⋮) and select "Set as wallpaper"', ToastAndroid.LONG);
-            } catch {
-              ToastAndroid.show('Saved to gallery! Set wallpaper via your Photos app.', ToastAndroid.LONG);
-            }
-          }
-        } else {
-          Alert.alert(
-            'Wallpaper Saved',
-            'Image saved to your Photos app. You can set it as your wallpaper via iOS Settings.'
-          );
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(localUri, {
+          mimeType: 'image/jpeg',
+          dialogTitle: 'Set Wallpaper',
+          UTI: 'public.image',
+        });
+      } else {
+        const assetInfo = await saveAndApplyWallpaper(localUri);
+        if (assetInfo && Platform.OS === 'android') {
+          ToastAndroid.show('Saved to gallery. Set via system gallery settings.', ToastAndroid.LONG);
         }
       }
     } catch (error: any) {
       console.error('Apply wallpaper error:', error);
-      Alert.alert('Error', 'Failed to prepare wallpaper image.');
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Failed to open wallpaper utility', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Error', 'Failed to prepare wallpaper image.');
+      }
     } finally {
+      if (localUri) {
+        await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
+      }
       setApplying(false);
     }
   };
+
+  const previewImageSource = wallpaper
+    ? wallpaper.path || wallpaper.thumbs?.large || wallpaper.thumbs?.original
+    : null;
 
   return (
     <ThemedView style={styles.container}>
@@ -379,7 +433,7 @@ export default function WallpaperScreen() {
           <ActivityIndicator size="large" color={paperTheme.colors.primary} />
           <Text style={styles.loadingText}>Loading wallpaper details...</Text>
         </View>
-      ) : wallpaper ? (
+      ) : wallpaper && previewImageSource ? (
         <>
           <ThemedScrollView
             style={styles.scrollView}
@@ -389,7 +443,7 @@ export default function WallpaperScreen() {
             {/* Top Image Showcase */}
             <View style={styles.heroImageContainer}>
               <Image
-                source={{ uri: wallpaper.path }}
+                source={{ uri: previewImageSource }}
                 style={styles.heroImage}
                 resizeMode="cover"
               />
@@ -402,7 +456,6 @@ export default function WallpaperScreen() {
 
             {/* Content Details Panel */}
             <View style={styles.contentContainer}>
-              {/* Primary Stats Grid */}
               <Surface
                 style={[
                   styles.card,
@@ -414,7 +467,7 @@ export default function WallpaperScreen() {
                   <View style={styles.statBox}>
                     <Maximize4 size={20} color={paperTheme.colors.primary} />
                     <Text variant="titleMedium" style={styles.statValue}>
-                      {wallpaper.resolution}
+                      {wallpaper.resolution || 'N/A'}
                     </Text>
                     <Text variant="bodySmall" style={styles.statLabel}>
                       Resolution
@@ -426,7 +479,7 @@ export default function WallpaperScreen() {
                   <View style={styles.statBox}>
                     <Category size={20} color={paperTheme.colors.primary} />
                     <Text variant="titleMedium" style={styles.statValue}>
-                      {wallpaper.category}
+                      {wallpaper.category || 'General'}
                     </Text>
                     <Text variant="bodySmall" style={styles.statLabel}>
                       Category
@@ -438,7 +491,7 @@ export default function WallpaperScreen() {
                   <View style={styles.statBox}>
                     <Star1 size={20} color={paperTheme.colors.primary} />
                     <Text variant="titleMedium" style={styles.statValue}>
-                      {wallpaper.purity.toUpperCase()}
+                      {wallpaper.purity ? wallpaper.purity.toUpperCase() : 'SFW'}
                     </Text>
                     <Text variant="bodySmall" style={styles.statLabel}>
                       Purity
@@ -452,7 +505,7 @@ export default function WallpaperScreen() {
                   <View style={styles.statBox}>
                     <Eye size={18} color={paperTheme.colors.onSurfaceVariant} />
                     <Text variant="bodyMedium" style={styles.subStatValue}>
-                      {wallpaper.views.toLocaleString()}
+                      {wallpaper.views ? wallpaper.views.toLocaleString() : 0}
                     </Text>
                     <Text variant="bodySmall" style={styles.statLabel}>
                       Views
@@ -462,7 +515,7 @@ export default function WallpaperScreen() {
                   <View style={styles.statBox}>
                     <Heart size={18} color={paperTheme.colors.onSurfaceVariant} />
                     <Text variant="bodyMedium" style={styles.subStatValue}>
-                      {wallpaper.favorites.toLocaleString()}
+                      {wallpaper.favorites ? wallpaper.favorites.toLocaleString() : 0}
                     </Text>
                     <Text variant="bodySmall" style={styles.statLabel}>
                       Favorites
@@ -472,7 +525,9 @@ export default function WallpaperScreen() {
                   <View style={styles.statBox}>
                     <ImageIcon size={18} color={paperTheme.colors.onSurfaceVariant} />
                     <Text variant="bodyMedium" style={styles.subStatValue}>
-                      {(wallpaper.file_size / (1024 * 1024)).toFixed(1)} MB
+                      {wallpaper.file_size
+                        ? `${(wallpaper.file_size / (1024 * 1024)).toFixed(1)} MB`
+                        : 'N/A'}
                     </Text>
                     <Text variant="bodySmall" style={styles.statLabel}>
                       Size
@@ -497,7 +552,6 @@ export default function WallpaperScreen() {
                 </View>
               </Surface>
 
-              {/* Color Palette */}
               {wallpaper.colors && wallpaper.colors.length > 0 && (
                 <View style={styles.section}>
                   <Text variant="titleSmall" style={styles.sectionHeader}>
@@ -516,7 +570,6 @@ export default function WallpaperScreen() {
                 </View>
               )}
 
-              {/* Interactive Tags */}
               {wallpaper.tags && wallpaper.tags.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
@@ -543,31 +596,35 @@ export default function WallpaperScreen() {
             </View>
           </ThemedScrollView>
 
-          {/* Bottom Action Dock */}
-          <Surface style={styles.bottomDock} elevation={4}>
+          <Surface
+            style={[
+              styles.floatingFabContainer,
+              { backgroundColor: paperTheme.colors.elevation.level3 },
+            ]}
+            elevation={4}
+          >
             <Button
               mode="contained"
               onPress={() => setDownloadDialogVisible(true)}
               icon={() => <ArrowCircleDown2 size={20} color="#FFFFFF" variant="Broken" />}
-              style={styles.primaryActionButton}
+              style={styles.floatingButton}
               contentStyle={styles.actionButtonContent}
             >
               Download
             </Button>
             <Button
-              mode="outlined"
+              mode="contained-tonal"
               onPress={applyWallpaper}
               icon={() => (
                 <ImageIcon size={20} color={paperTheme.colors.primary} variant="Broken" />
               )}
-              style={styles.secondaryActionButton}
+              style={styles.floatingButton}
               contentStyle={styles.actionButtonContent}
             >
-              Apply Wallpaper
+              Apply
             </Button>
           </Surface>
 
-          {/* Dialogs */}
           <Portal>
             <Dialog
               visible={downloadDialogVisible}
@@ -581,22 +638,26 @@ export default function WallpaperScreen() {
                   onPress={() => downloadWallpaper('original')}
                   style={styles.downloadOptionBtn}
                 >
-                  Original ({wallpaper.resolution})
+                  Original ({wallpaper.resolution || 'High Quality'})
                 </Button>
-                <Button
-                  mode="outlined"
-                  onPress={() => downloadWallpaper('large')}
-                  style={styles.downloadOptionBtn}
-                >
-                  Large Preview
-                </Button>
-                <Button
-                  mode="outlined"
-                  onPress={() => downloadWallpaper('small')}
-                  style={styles.downloadOptionBtn}
-                >
-                  Small Thumbnail
-                </Button>
+                {wallpaper.thumbs?.large && (
+                  <Button
+                    mode="outlined"
+                    onPress={() => downloadWallpaper('large')}
+                    style={styles.downloadOptionBtn}
+                  >
+                    Large Preview
+                  </Button>
+                )}
+                {wallpaper.thumbs?.small && (
+                  <Button
+                    mode="outlined"
+                    onPress={() => downloadWallpaper('small')}
+                    style={styles.downloadOptionBtn}
+                  >
+                    Small Thumbnail
+                  </Button>
+                )}
               </Dialog.Content>
               <Dialog.Actions>
                 <Button onPress={() => setDownloadDialogVisible(false)}>
@@ -619,6 +680,9 @@ export default function WallpaperScreen() {
                   {Math.round(downloadProgress * 100)}%
                 </Text>
               </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={cancelDownloadProcess}>Cancel</Button>
+              </Dialog.Actions>
             </Dialog>
 
             <Dialog
@@ -820,26 +884,21 @@ const styles = StyleSheet.create({
   interactiveTag: {
     borderRadius: 20,
   },
-  bottomDock: {
+  floatingFabContainer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+    bottom: Platform.OS === 'ios' ? 32 : 24,
+    left: 20,
+    right: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     gap: 12,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 32,
+    alignItems: 'center',
   },
-  primaryActionButton: {
+  floatingButton: {
     flex: 1,
-    borderRadius: 12,
-  },
-  secondaryActionButton: {
-    flex: 1,
-    borderRadius: 12,
+    borderRadius: 24,
   },
   actionButtonContent: {
     height: 48,

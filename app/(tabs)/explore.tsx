@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, Filter, ArrowLeft2, ArrowRight2 } from 'iconsax-react-nativejs';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import { FontSizes } from '@/constants/FontSizes';
@@ -27,7 +27,6 @@ interface MasonryItem extends WallpaperPreview {
   uniqueId: string;
 }
 
-// Custom Masonry Grid Component
 const MasonryGrid: React.FC<{
   data: MasonryItem[];
   renderItem: (item: MasonryItem, index: number) => React.ReactElement;
@@ -91,8 +90,9 @@ export default function ExploreScreen() {
 
         const savedFavorites = await AsyncStorage.getItem('favorites');
         if (savedFavorites) {
-          const parsedFavorites = JSON.parse(savedFavorites);
-          setFavorites(parsedFavorites.map((item: WallpaperPreview) => item.id));
+          const parsedFavorites: WallpaperPreview[] = JSON.parse(savedFavorites);
+          const favoriteIds = parsedFavorites.map((item) => String(item.id));
+          setFavorites(favoriteIds);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -131,30 +131,110 @@ export default function ExploreScreen() {
 
   const toggleFavorite = async (wallpaper: WallpaperPreview) => {
     try {
-      const savedFavorites = await AsyncStorage.getItem('favorites');
-      let favoritesArray: WallpaperPreview[] = [];
+      const wallpaperId = String(wallpaper.id);
+      const savedFavorites = await AsyncStorage.getItem('@shiori_favorites');
+      let favoritesArray: WallpaperPreview[] = savedFavorites ? JSON.parse(savedFavorites) : [];
 
-      if (savedFavorites) {
-        favoritesArray = JSON.parse(savedFavorites);
-      }
+      const isFavorite = favorites.includes(wallpaperId);
 
-      const isFavorite = favorites.includes(wallpaper.id);
+      let updatedFavoritesArray: WallpaperPreview[];
+      let updatedFavoriteIds: string[];
 
       if (isFavorite) {
-        const updatedFavorites = favoritesArray.filter((item) => item.id !== wallpaper.id);
-        await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-        setFavorites(updatedFavorites.map((item) => item.id));
+        updatedFavoritesArray = favoritesArray.filter((item) => String(item.id) !== wallpaperId);
+        updatedFavoriteIds = favorites.filter((id) => id !== wallpaperId);
       } else {
-        favoritesArray.push(wallpaper);
-        await AsyncStorage.setItem('favorites', JSON.stringify(favoritesArray));
-        setFavorites([...favorites, wallpaper.id]);
+        updatedFavoritesArray = [...favoritesArray, wallpaper];
+        updatedFavoriteIds = [...favorites, wallpaperId];
       }
+
+      setFavorites(updatedFavoriteIds);
+      await AsyncStorage.setItem('@shiori_favorites', JSON.stringify(updatedFavoritesArray));
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (error) {
       console.error('Error toggling favorite:', error);
     }
   };
 
-  // Memoized fetch function with proper state bindings
+  const downloadWallpaper = async (wallpaper: WallpaperPreview) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Shiori needs storage permission to save wallpapers to your device.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      const downloadLocation = (await AsyncStorage.getItem('downloadLocation')) || 'gallery';
+      const timestamp = new Date().getTime();
+      const fileExt = wallpaper.file_type ? wallpaper.file_type.split('/')[1] : 'jpg';
+      const fileName = `shiori_${wallpaper.id}_${timestamp}.${fileExt}`;
+
+      let fileUri: string;
+      const imageUrl = wallpaper.path || wallpaper.thumbs.large;
+
+      if (downloadLocation === 'gallery') {
+        const tempUri = FileSystem.cacheDirectory + fileName;
+        const downloadResumable = FileSystem.createDownloadResumable(imageUrl, tempUri);
+
+        const result = await downloadResumable.downloadAsync();
+        if (!result) throw new Error('Download failed');
+
+        const asset = await MediaLibrary.createAssetAsync(result.uri);
+
+        try {
+          const album = await MediaLibrary.getAlbumAsync('Shiori');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+          }
+        } catch (error) {
+          console.error('Album error:', error);
+        }
+
+        await FileSystem.deleteAsync(tempUri, { idempotent: true });
+
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Wallpaper saved to your gallery');
+        }
+      } else {
+        const privateDir = FileSystem.documentDirectory + 'wallpapers/';
+
+        const dirInfo = await FileSystem.getInfoAsync(privateDir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
+        }
+
+        fileUri = privateDir + fileName;
+        const downloadResumable = FileSystem.createDownloadResumable(imageUrl, fileUri);
+
+        const result = await downloadResumable.downloadAsync();
+        if (!result) throw new Error('Download failed');
+
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Wallpaper saved to app storage', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Success', 'Wallpaper saved to app storage');
+        }
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to download the wallpaper. Please try again.');
+    }
+  };
+
   const fetchWallpapers = useCallback(
     async (targetPage: number, isRefresh = false) => {
       try {
@@ -197,16 +277,14 @@ export default function ExploreScreen() {
     [searchQuery, selectedSort, selectedOrder, showNsfwContent]
   );
 
-  // Single Effect triggered on filter or query change -> resets to page 1 and fetches
   useEffect(() => {
     if (page !== 1) {
-      setPage(1); // Will trigger the page effect below
+      setPage(1);
     } else {
       fetchWallpapers(1);
     }
   }, [searchQuery, selectedSort, selectedOrder, showNsfwContent]);
 
-  // Single Effect for pagination changes
   useEffect(() => {
     fetchWallpapers(page);
   }, [page, fetchWallpapers]);
@@ -234,90 +312,8 @@ export default function ExploreScreen() {
     }
   };
 
-  const downloadWallpaper = async (wallpaper: WallpaperPreview) => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Shiori needs storage permission to save wallpapers to your device.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-        return;
-      }
-
-      const downloadLocation = (await AsyncStorage.getItem('downloadLocation')) || 'gallery';
-      const timestamp = new Date().getTime();
-      const fileName = `shiori_${wallpaper.id}_${timestamp}.${wallpaper.file_type.split('/')[1] || 'jpg'}`;
-
-      let fileUri: string;
-
-      if (downloadLocation === 'gallery') {
-        const tempUri = FileSystem.cacheDirectory + fileName;
-        const downloadResumable = FileSystem.createDownloadResumable(
-          wallpaper.thumbs.large,
-          tempUri
-        );
-
-        const result = await downloadResumable.downloadAsync();
-        if (!result) throw new Error('Download failed');
-
-        const asset = await MediaLibrary.createAssetAsync(result.uri);
-
-        try {
-          const album = await MediaLibrary.getAlbumAsync('Shiori');
-          if (album) {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-          } else {
-            await MediaLibrary.createAlbumAsync('Shiori', asset, false);
-          }
-        } catch (error) {
-          console.error('Album error:', error);
-        }
-
-        await FileSystem.deleteAsync(tempUri);
-
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', 'Wallpaper saved to your gallery');
-        }
-      } else {
-        const privateDir = FileSystem.documentDirectory + 'wallpapers/';
-
-        const dirInfo = await FileSystem.getInfoAsync(privateDir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
-        }
-
-        fileUri = privateDir + fileName;
-        const downloadResumable = FileSystem.createDownloadResumable(
-          wallpaper.thumbs.large,
-          fileUri
-        );
-
-        const result = await downloadResumable.downloadAsync();
-        if (!result) throw new Error('Download failed');
-
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Wallpaper saved to app storage', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', 'Wallpaper saved to app storage');
-        }
-      }
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Download error:', error);
-      Alert.alert('Error', 'Failed to download the wallpaper. Please try again.');
-    }
-  };
-
   const renderWallpaper = (item: MasonryItem, index: number) => {
-    const isFavorite = favorites.includes(item.id);
+    const isFavorite = favorites.includes(String(item.id));
 
     return (
       <Card
@@ -339,28 +335,17 @@ export default function ExploreScreen() {
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => toggleFavorite(item)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite(item);
+                }}
               >
                 <BlurView intensity={25} tint="dark" style={styles.blurView}>
                   <Heart
                     size={22}
-                    color="#FFFFFF"
+                    color={isFavorite ? '#FF4D4D' : '#FFFFFF'}
                     variant={isFavorite ? 'Bold' : 'Broken'}
                     style={styles.heartIcon}
-                  />
-                </BlurView>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => downloadWallpaper(item)}
-              >
-                <BlurView intensity={25} tint="dark" style={styles.blurView}>
-                  <ArrowDown2
-                    size={22}
-                    color="#FFFFFF"
-                    variant="Broken"
-                    style={styles.downloadIcon}
                   />
                 </BlurView>
               </TouchableOpacity>
@@ -626,7 +611,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   masonryContainer: {
@@ -661,6 +646,7 @@ const styles = StyleSheet.create({
     right: 8,
     flexDirection: 'row',
     gap: 8,
+    zIndex: 2,
   },
   actionButton: {
     width: 40,

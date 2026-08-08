@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
   filterHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 0,
+    marginBottom: 8,
   },
   glassIcons: {
     flexDirection: 'row',
