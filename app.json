@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shiori",
     "slug": "shiori",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/shiori.png",
     "scheme": "shiori",
@@ -47,7 +47,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/shiori.png"
     },
     "plugins": [

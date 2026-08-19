@@ -1,13 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState, useRef } from 'react';
-import * as Sharing from 'expo-sharing';
 import {
   Image,
   StyleSheet,
   View,
   Dimensions,
   ActivityIndicator,
-  Share,
+  Share as RNShare,
   Platform,
   Alert,
   ToastAndroid,
@@ -23,14 +22,15 @@ import {
   Button,
   Portal,
   Dialog,
-  ProgressBar,
 } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import { useThemeContext } from '../../contexts/ThemeContext';
-import * as FileSystem from 'expo-file-system'; 
+import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -45,6 +45,7 @@ import {
   Image as ImageIcon,
   Tag as TagIcon,
   Maximize4,
+  Export,
 } from 'iconsax-react-nativejs';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -63,13 +64,11 @@ export default function WallpaperScreen() {
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [downloadDialogVisible, setDownloadDialogVisible] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState('original');
-  const [applying, setApplying] = useState(false);
+  const [sharingLoading, setSharingLoading] = useState(false);
 
   const downloadResumableRef = useRef<FileSystem.DownloadResumable | null>(null);
 
@@ -157,18 +156,18 @@ export default function WallpaperScreen() {
     }
   };
 
-  const shareWallpaper = async () => {
+  const shareWallpaperLink = async () => {
     if (wallpaper) {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        await Share.share({
+        await RNShare.share({
           message: `Check out this wallpaper on Shiori: ${
             wallpaper.short_url || wallpaper.url
           }`,
           url: wallpaper.url,
         });
       } catch (error) {
-        console.error('Error sharing:', error);
+        console.error('Error sharing link:', error);
       }
     }
   };
@@ -195,20 +194,7 @@ export default function WallpaperScreen() {
     }
   };
 
-  const cancelDownloadProcess = async () => {
-    if (downloadResumableRef.current) {
-      try {
-        await downloadResumableRef.current.cancelAsync();
-      } catch (e) {
-        console.warn('Error cancelling download:', e);
-      }
-      downloadResumableRef.current = null;
-    }
-    setDownloading(false);
-    setApplying(false);
-  };
-
-  const saveFileLocally = async (quality = 'original'): Promise<string | null> => {
+  const saveFileLocally = async (quality = 'original', onProgress?: (progress: number) => void): Promise<string | null> => {
     if (!wallpaper) return null;
     const downloadUrl = getDownloadUrl(quality);
 
@@ -243,7 +229,9 @@ export default function WallpaperScreen() {
         const progress =
           downloadProgress.totalBytesWritten /
           downloadProgress.totalBytesExpectedToWrite;
-        setDownloadProgress(isNaN(progress) || progress < 0 ? 0 : progress);
+        if (onProgress) {
+          onProgress(isNaN(progress) || progress < 0 ? 0 : progress);
+        }
       }
     );
 
@@ -260,9 +248,9 @@ export default function WallpaperScreen() {
     return result.uri;
   };
 
-  const saveAndApplyWallpaper = async (fileUri: string) => {
+  const saveToGallery = async (fileUri: string) => {
     try {
-      const permission = await MediaLibrary.requestPermissionsAsync(true);
+      const permission = await MediaLibrary.requestPermissionsAsync();
 
       if (!permission.granted) {
         Alert.alert(
@@ -272,20 +260,16 @@ export default function WallpaperScreen() {
         return null;
       }
 
-      let album = await MediaLibrary.getAlbumAsync('Shiori');
       const asset = await MediaLibrary.createAssetAsync(fileUri);
+      let album = await MediaLibrary.getAlbumAsync('Shiori');
 
       if (!album) {
-        album = await MediaLibrary.createAlbumAsync('Shiori', asset, false);
+        await MediaLibrary.createAlbumAsync('Shiori', asset, false);
       } else {
-        try {
-          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-        } catch (albumError) {
-          console.warn('Could not add to album, saved to main gallery instead:', albumError);
-        }
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
       }
 
-      return await MediaLibrary.getAssetInfoAsync(asset);
+      return asset;
     } catch (error) {
       console.error('Save wallpaper error:', error);
       throw error;
@@ -313,78 +297,77 @@ export default function WallpaperScreen() {
       }
     }
 
-    setDownloading(true);
-    setDownloadProgress(0);
-    setDownloadError(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Downloading wallpaper...', ToastAndroid.SHORT);
+    }
 
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const localUri = await saveFileLocally(quality);
 
       if (!localUri) throw new Error('Download failed - invalid URI');
 
-      const savedAssetInfo = await saveAndApplyWallpaper(localUri);
+      const savedAssetInfo = await saveToGallery(localUri);
 
       if (savedAssetInfo) {
         await FileSystem.deleteAsync(localUri, { idempotent: true });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         if (Platform.OS === 'android') {
-          ToastAndroid.show(`Wallpaper saved to gallery (${quality})`, ToastAndroid.SHORT);
+          ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
         } else {
-          Alert.alert('Success', `Wallpaper saved to your gallery (${quality})`);
+          Alert.alert('Success', 'Wallpaper saved to your gallery in "Shiori" album.');
         }
       }
     } catch (error: any) {
       console.error('Download error:', error);
-      setDownloadError(`Failed to download the image: ${error.message || 'Unknown error'}`);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('Failed to download image', ToastAndroid.SHORT);
-      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      setDownloadError(`Failed to download: ${error.message || 'Unknown error'}`);
       setShowFallbackDialog(true);
-    } finally {
-      setDownloading(false);
     }
   };
 
-  const applyWallpaper = async () => {
+  const shareWallpaperFile = async () => {
     if (!wallpaper) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    setApplying(true);
-    setDownloadProgress(0);
+    setSharingLoading(true);
     let localUri: string | null = null;
 
     try {
-      localUri = await saveFileLocally('original');
-      if (!localUri) throw new Error('Failed to cache image');
-
-      const isSharingAvailable = await Sharing.isAvailableAsync();
-
-      if (isSharingAvailable) {
-        await Sharing.shareAsync(localUri, {
-          mimeType: 'image/jpeg',
-          dialogTitle: 'Set Wallpaper',
-          UTI: 'public.image',
-        });
-      } else {
-        const assetInfo = await saveAndApplyWallpaper(localUri);
-        if (assetInfo && Platform.OS === 'android') {
-          ToastAndroid.show('Saved to gallery. Set via system gallery settings.', ToastAndroid.LONG);
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Sharing is not supported on this device', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Notice', 'Sharing is not supported on this device.');
         }
+        return;
       }
+
+      localUri = await saveFileLocally('original');
+      if (!localUri) throw new Error('Failed to cache image for sharing');
+
+      const mimeType = wallpaper.file_type || 'image/jpeg';
+
+      await Sharing.shareAsync(localUri, {
+        mimeType,
+        dialogTitle: 'Share Wallpaper',
+      });
     } catch (error: any) {
-      console.error('Apply wallpaper error:', error);
+      console.error('Share wallpaper error:', error);
       if (Platform.OS === 'android') {
-        ToastAndroid.show('Failed to open wallpaper utility', ToastAndroid.SHORT);
+        ToastAndroid.show('Failed to share wallpaper image', ToastAndroid.SHORT);
       } else {
-        Alert.alert('Error', 'Failed to prepare wallpaper image.');
+        Alert.alert('Error', 'Failed to prepare wallpaper image for sharing.');
       }
     } finally {
       if (localUri) {
         await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
       }
-      setApplying(false);
+      setSharingLoading(false);
     }
   };
 
@@ -420,7 +403,7 @@ export default function WallpaperScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.circleIconButton}
-            onPress={shareWallpaper}
+            onPress={shareWallpaperLink}
             activeOpacity={0.8}
           >
             <ShareIcon size={22} color="#FFFFFF" variant="Broken" />
@@ -596,34 +579,51 @@ export default function WallpaperScreen() {
             </View>
           </ThemedScrollView>
 
-          <Surface
-            style={[
-              styles.floatingFabContainer,
-              { backgroundColor: paperTheme.colors.elevation.level3 },
-            ]}
-            elevation={4}
-          >
-            <Button
-              mode="contained"
-              onPress={() => setDownloadDialogVisible(true)}
-              icon={() => <ArrowCircleDown2 size={20} color="#FFFFFF" variant="Broken" />}
-              style={styles.floatingButton}
-              contentStyle={styles.actionButtonContent}
-            >
-              Download
-            </Button>
-            <Button
-              mode="contained-tonal"
-              onPress={applyWallpaper}
-              icon={() => (
-                <ImageIcon size={20} color={paperTheme.colors.primary} variant="Broken" />
-              )}
-              style={styles.floatingButton}
-              contentStyle={styles.actionButtonContent}
-            >
-              Apply
-            </Button>
-          </Surface>
+          {/* Separate Floating Glassmorphic Buttons */}
+          <View style={styles.floatingActionRow}>
+            <View style={styles.floatingButtonWrapper}>
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 60 : 90}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                style={styles.separateGlassButton}
+              >
+                <TouchableOpacity
+                  style={styles.innerTouchable}
+                  onPress={() => setDownloadDialogVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <ArrowCircleDown2 size={20} color={paperTheme.colors.primary} variant="Broken" />
+                  <Text style={[styles.buttonLabel, { color: paperTheme.colors.onSurface }]}>
+                    Download
+                  </Text>
+                </TouchableOpacity>
+              </BlurView>
+            </View>
+
+            <View style={styles.floatingButtonWrapper}>
+              <BlurView
+                intensity={Platform.OS === 'ios' ? 60 : 90}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                style={styles.separateGlassButton}
+              >
+                <TouchableOpacity
+                  style={styles.innerTouchable}
+                  onPress={shareWallpaperFile}
+                  disabled={sharingLoading}
+                  activeOpacity={0.7}
+                >
+                  {sharingLoading ? (
+                    <ActivityIndicator size="small" color={paperTheme.colors.primary} />
+                  ) : (
+                    <Export size={20} color={paperTheme.colors.primary} variant="Broken" />
+                  )}
+                  <Text style={[styles.buttonLabel, { color: paperTheme.colors.onSurface }]}>
+                    Share File
+                  </Text>
+                </TouchableOpacity>
+              </BlurView>
+            </View>
+          </View>
 
           <Portal>
             <Dialog
@@ -663,25 +663,6 @@ export default function WallpaperScreen() {
                 <Button onPress={() => setDownloadDialogVisible(false)}>
                   Cancel
                 </Button>
-              </Dialog.Actions>
-            </Dialog>
-
-            <Dialog visible={downloading || applying} dismissable={false}>
-              <Dialog.Title>
-                {applying ? 'Preparing Wallpaper...' : 'Downloading...'}
-              </Dialog.Title>
-              <Dialog.Content>
-                <ProgressBar
-                  progress={downloadProgress}
-                  color={paperTheme.colors.primary}
-                  style={styles.progressBar}
-                />
-                <Text style={styles.progressPercentText}>
-                  {Math.round(downloadProgress * 100)}%
-                </Text>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={cancelDownloadProcess}>Cancel</Button>
               </Dialog.Actions>
             </Dialog>
 
@@ -745,7 +726,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
     paddingBottom: 120,
   },
   centerContainer: {
@@ -884,38 +864,48 @@ const styles = StyleSheet.create({
   interactiveTag: {
     borderRadius: 20,
   },
-  floatingFabContainer: {
+  floatingActionRow: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 32 : 24,
-    left: 20,
-    right: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    bottom: Platform.OS === 'ios' ? 28 : 20,
+    left: 16,
+    right: 16,
     flexDirection: 'row',
     gap: 12,
-    borderRadius: 32,
-    alignItems: 'center',
+    zIndex: 10,
   },
-  floatingButton: {
+  floatingButtonWrapper: {
     flex: 1,
-    borderRadius: 24,
+    borderRadius: 28,
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  actionButtonContent: {
-    height: 48,
+  separateGlassButton: {
+    borderRadius: 28,
+    backgroundColor: Platform.OS === 'android' ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  innerTouchable: {
+    flexDirection: 'row',
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  buttonLabel: {
+    fontWeight: '600',
+    fontSize: 14,
   },
   dialogContainer: {
     borderRadius: 16,
   },
   downloadOptionBtn: {
     marginVertical: 4,
-  },
-  progressBar: {
-    marginVertical: 16,
-    borderRadius: 4,
-  },
-  progressPercentText: {
-    textAlign: 'center',
-    fontWeight: '600',
   },
   fullWebViewDialog: {
     maxHeight: height * 0.8,

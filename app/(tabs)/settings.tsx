@@ -810,8 +810,6 @@ export default function SettingsScreen() {
         loading: false
       });
 
-      // Call the API to force global NSFW settings update
-      wallhavenAPI.updateNsfwFilter(false);
 
       Alert.alert('Success', 'API key has been removed successfully.');
     } catch (error) {
@@ -881,10 +879,10 @@ export default function SettingsScreen() {
                     {authState.username}
                   </Text>
                   <Text variant="bodySmall" style={[styles.motto, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
-                    Gotta Share that !
+                    v1.1.0
                   </Text>
                   <Text variant="bodySmall" style={[styles.userSubtitle, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
-                    {authState.hasApiKey ? 'API Key Connected' : 'Add your API key for more features'}
+                    {authState.hasApiKey ? 'API Key Connected' : 'Fine tune the app to work for you'}
                   </Text>
                 </View>
               </View>
@@ -907,9 +905,7 @@ export default function SettingsScreen() {
                   loading={authState.loading}
                   disabled={authState.loading || authState.hasApiKey}
                   labelStyle={{ fontSize: fontSizes.body, fontFamily: 'Nunito-SemiBold', color: paperTheme.colors.onPrimary }}
-                  icon={({ size, color }) => (
-                    <Key variant="Broken" size={20} color={paperTheme.colors.onPrimary} />
-                  )}
+    
                   onPress={() => Linking.openURL('https://https://brian-ali.netlify.app/')}
                 >
                   About Me.
@@ -1096,80 +1092,7 @@ export default function SettingsScreen() {
             </Card.Content>
           </Card>
 
-          <Card style={styles.settingsSection} mode="elevated">
-            <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>WALLHAVEN API</Text>
-
-              <List.Item
-                title="API Key"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description={authState.hasApiKey ? 'API key is set and active' : 'No API key set'}
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Key variant="Broken" size={size} color={color} />
-                )} />}
-                onPress={() => updateAuthState({ wallhavenAuthVisible: true })}
-                right={() => authState.hasApiKey ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <IconButton
-                      icon="pencil"
-                      size={20}
-                      onPress={() => {
-                        // Open manual key dialog to change key
-                        setManualKeyDialogVisible(true);
-                      }}
-                      style={{ margin: 0 }}
-                    />
-                    <IconButton
-                      icon="delete"
-                      size={20}
-                      onPress={() => {
-                        // Confirm before removing API key
-                        Alert.alert(
-                          'Remove API Key?',
-                          'This will remove your Wallhaven API key and disable NSFW content.',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            {
-                              text: 'Remove',
-                              style: 'destructive',
-                              onPress: handleRemoveApiKey
-                            }
-                          ]
-                        );
-                      }}
-                      style={{ margin: 0 }}
-                    />
-                    <Star variant="Broken" size={24} color={paperTheme.colors.primary} style={{ marginLeft: 4, marginRight: 8 }} />
-                  </View>
-                ) : null}
-              />
-
-              <List.Item
-                title="Show NSFW Content"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description={authState.hasApiKey ? "Enable to show NSFW and sketchy content (requires API key)" : "API key required to view NSFW and sketchy content"}
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Eye variant="Broken" size={size} color={color} />
-                )} />}
-                right={() => (
-                  loadingStates.nsfw ? (
-                    <View style={{ marginRight: 8 }}>
-                      <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                    </View>
-                  ) : (
-                    <AnimatedSwitch
-                      value={settings.showNsfwContent}
-                      onValueChange={handleNsfwToggle}
-                      disabled={!authState.hasApiKey}
-                    />
-                  )
-                )}
-                disabled={loadingStates.nsfw || !authState.hasApiKey}
-              />
-            </Card.Content>
-          </Card>
+         
 
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
@@ -1306,9 +1229,6 @@ export default function SettingsScreen() {
 
                   <Button
                     mode="outlined"
-                    icon={({ size, color }) => (
-                      <Key variant="Broken" size={18} color={color} />
-                    )}
                     onPress={showManualKeyDialog}
                     labelStyle={{ fontSize: fontSizes.body }}
                   >
