@@ -1,11 +1,39 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, ToastAndroid, Platform, Alert, Linking, TouchableOpacity } from 'react-native';
-import { Button, Text, TextInput, useTheme, ActivityIndicator, Chip, Surface } from 'react-native-paper';
-import { DeviceMessage, Message, Document, InfoCircle, Copy, Warning2, Star1, Clock, TickCircle } from 'iconsax-react-nativejs';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  ToastAndroid,
+  Platform,
+  Alert,
+  Linking,
+  TouchableOpacity,
+  Pressable,
+} from 'react-native';
+import {
+  Button,
+  Text,
+  TextInput,
+  useTheme,
+  ActivityIndicator,
+  Surface,
+} from 'react-native-paper';
+import {
+  Message,
+  Document,
+  InfoCircle,
+  Copy,
+  Warning2,
+  Star1,
+  Clock,
+  Send2,
+  TickCircle,
+  CopySuccess,
+} from 'iconsax-react-nativejs';
 import * as ExpoClipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeContext } from '@/contexts/ThemeContext';
@@ -24,16 +52,20 @@ const BUG_CATEGORIES = [
 ];
 
 const PRIORITY_LEVELS = [
-  { id: 'low', label: 'Low' },
-  { id: 'medium', label: 'Medium' },
-  { id: 'high', label: 'High' },
-  { id: 'critical', label: 'Critical' },
+  { id: 'low', label: 'Low', color: '#10B981' },
+  { id: 'medium', label: 'Medium', color: '#F59E0B' },
+  { id: 'high', label: 'High', color: '#F97316' },
+  { id: 'critical', label: 'Critical', color: '#EF4444' },
 ];
 
 export default function BugReportScreen() {
   const theme = useTheme();
   const colors = useThemeColors();
   const { isDark, isAmoled } = useThemeContext();
+  const insets = useSafeAreaInsets();
+
+  // Floating tab bar clearance
+  const floatingTabBarClearance = 60 + Math.max(insets.bottom + 8, 18) + 16;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -44,8 +76,10 @@ export default function BugReportScreen() {
   const [expectedBehavior, setExpectedBehavior] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpeningGitHub, setIsOpeningGitHub] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   const cardBackground = isDark || isAmoled ? theme.colors.elevation.level2 : theme.colors.surface;
+  const borderColor = isDark || isAmoled ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
 
   const showToast = (message: string) => {
     if (Platform.OS === 'android') {
@@ -63,7 +97,9 @@ export default function BugReportScreen() {
   const handleCopyDeviceInfo = async () => {
     const deviceInfoText = `App Version: ${appVersion}\nDevice: ${deviceInfo}\nPlatform: ${Platform.OS} ${Platform.Version}`;
     await ExpoClipboard.setStringAsync(deviceInfoText);
+    setIsCopied(true);
     showToast('Device info copied to clipboard');
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleOpenGitHub = async () => {
@@ -101,11 +137,11 @@ export default function BugReportScreen() {
     setTimeout(() => {
       setIsSubmitting(false);
       Alert.alert(
-        'Thank You',
-        'Your bug report has been submitted successfully.',
+        'Report Sent',
+        'Thank you for helping us improve Shiori! Your bug report has been received.',
         [
           { text: 'Submit Another', onPress: resetForm },
-          { text: 'OK', style: 'cancel' }
+          { text: 'Done', style: 'cancel' },
         ]
       );
     }, 1200);
@@ -128,165 +164,264 @@ export default function BugReportScreen() {
           }}
         />
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Main Form Section */}
-          <Surface style={[styles.card, { backgroundColor: cardBackground }]} elevation={1}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface, fontFamily: 'Nunito-Bold' }]}>
-              Issue Details
-            </Text>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: floatingTabBarClearance },
+          ]}
+        >
+          {/* Header Banner */}
+          <Surface style={[styles.heroCard, { backgroundColor: cardBackground, borderColor }]} elevation={0}>
+            <View style={[styles.iconHeaderBg, { backgroundColor: theme.colors.primaryContainer }]}>
+              <InfoCircle size={26} color={theme.colors.primary} variant="Bold" />
+            </View>
+            <View style={styles.heroTextContainer}>
+              <Text style={[styles.heroTitle, { color: theme.colors.onSurface }]}>
+                Found an Issue?
+              </Text>
+              <Text style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                Help us squash bugs by providing detailed feedback below.
+              </Text>
+            </View>
+          </Surface>
 
-            {/* Bug Category Chips */}
-            <Text style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>Category *</Text>
-            <View style={styles.chipRow}>
+          {/* Main Form Section */}
+          <Surface style={[styles.card, { backgroundColor: cardBackground, borderColor }]} elevation={0}>
+            {/* Category Grid */}
+            <Text style={[styles.inputLabel, { color: theme.colors.onSurface }]}>
+              Category <Text style={{ color: theme.colors.error }}>*</Text>
+            </Text>
+            <View style={styles.categoryGrid}>
               {BUG_CATEGORIES.map((category) => {
                 const IconComponent = category.icon;
                 const isSelected = selectedCategory === category.id;
                 return (
-                  <Chip
+                  <Pressable
                     key={category.id}
-                    selected={isSelected}
                     onPress={() => setSelectedCategory(category.id)}
-                    style={styles.chip}
-                    showSelectedOverlay
-                    icon={() => (
-                      <IconComponent
-                        size={16}
-                        color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
-                        variant={isSelected ? 'Bold' : 'Linear'}
-                      />
-                    )}
+                    style={({ pressed }) => [
+                      styles.categoryCard,
+                      {
+                        borderColor: isSelected
+                          ? theme.colors.primary
+                          : borderColor,
+                        backgroundColor: isSelected
+                          ? theme.colors.primaryContainer + '33'
+                          : isDark || isAmoled
+                          ? 'rgba(255, 255, 255, 0.03)'
+                          : 'rgba(0, 0, 0, 0.02)',
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
                   >
-                    {category.label}
-                  </Chip>
+                    <IconComponent
+                      size={20}
+                      color={isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                      variant={isSelected ? 'Bold' : 'Linear'}
+                    />
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        {
+                          color: isSelected ? theme.colors.primary : theme.colors.onSurfaceVariant,
+                          fontFamily: isSelected ? 'Nunito-Bold' : 'Nunito-Medium',
+                        },
+                      ]}
+                    >
+                      {category.label}
+                    </Text>
+                  </Pressable>
                 );
               })}
             </View>
 
-            {/* Priority Selection */}
-            <Text style={[styles.inputLabel, { color: theme.colors.onSurfaceVariant }]}>Priority</Text>
-            <View style={styles.chipRow}>
+            {/* Priority Selection Bar */}
+            <Text style={[styles.inputLabel, { color: theme.colors.onSurface }]}>Priority Level</Text>
+            <View style={[styles.prioritySegmentContainer, { borderColor, backgroundColor: isDark || isAmoled ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}>
               {PRIORITY_LEVELS.map((priority) => {
                 const isSelected = selectedPriority === priority.id;
                 return (
-                  <Chip
+                  <TouchableOpacity
                     key={priority.id}
-                    selected={isSelected}
+                    activeOpacity={0.7}
                     onPress={() => setPriority(priority.id)}
-                    style={styles.chip}
-                    showSelectedOverlay
+                    style={[
+                      styles.priorityItem,
+                      isSelected && [
+                        styles.priorityItemActive,
+                        { backgroundColor: priority.color + '22', borderColor: priority.color },
+                      ],
+                    ]}
                   >
-                    {priority.label}
-                  </Chip>
+                    <View
+                      style={[
+                        styles.priorityDot,
+                        { backgroundColor: isSelected ? priority.color : theme.colors.outline },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.priorityText,
+                        {
+                          color: isSelected ? priority.color : theme.colors.onSurfaceVariant,
+                          fontFamily: isSelected ? 'Nunito-Bold' : 'Nunito-Medium',
+                        },
+                      ]}
+                    >
+                      {priority.label}
+                    </Text>
+                  </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* Inputs */}
-            <TextInput
-              label="Bug Title *"
-              value={title}
-              onChangeText={setTitle}
-              mode="outlined"
-              style={styles.input}
-              placeholder="Brief summary of the issue"
-            />
+            {/* Input Fields */}
+            <View style={styles.formFields}>
+              <TextInput
+                label="Bug Title *"
+                value={title}
+                onChangeText={setTitle}
+                mode="outlined"
+                outlineStyle={styles.inputOutline}
+                style={styles.input}
+                placeholder="e.g. Wallpapers not loading on Wi-Fi"
+              />
 
-            <TextInput
-              label="What happened? *"
-              value={description}
-              onChangeText={setDescription}
-              mode="outlined"
-              multiline
-              numberOfLines={4}
-              maxLength={MAX_DESCRIPTION_LENGTH}
-              style={styles.input}
-              placeholder="Describe what went wrong"
-            />
-            <Text style={[styles.charCount, { color: theme.colors.outline }]}>
-              {description.length}/{MAX_DESCRIPTION_LENGTH}
-            </Text>
+              <View>
+                <TextInput
+                  label="What happened? *"
+                  value={description}
+                  onChangeText={setDescription}
+                  mode="outlined"
+                  multiline
+                  numberOfLines={4}
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  outlineStyle={styles.inputOutline}
+                  style={styles.input}
+                  placeholder="Describe what went wrong in detail..."
+                />
+                <Text style={[styles.charCount, { color: theme.colors.outline }]}>
+                  {description.length}/{MAX_DESCRIPTION_LENGTH}
+                </Text>
+              </View>
 
-            <TextInput
-              label="Steps to Reproduce (optional)"
-              value={stepsToReproduce}
-              onChangeText={setStepsToReproduce}
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-              style={styles.input}
-              placeholder="1. Go to... &#10;2. Tap on..."
-            />
+              <TextInput
+                label="Steps to Reproduce (optional)"
+                value={stepsToReproduce}
+                onChangeText={setStepsToReproduce}
+                mode="outlined"
+                multiline
+                numberOfLines={3}
+                outlineStyle={styles.inputOutline}
+                style={styles.input}
+                placeholder="1. Go to Explore tab&#10;2. Tap on 4K filter"
+              />
 
-            <TextInput
-              label="Expected Behavior (optional)"
-              value={expectedBehavior}
-              onChangeText={setExpectedBehavior}
-              mode="outlined"
-              multiline
-              numberOfLines={2}
-              style={styles.input}
-              placeholder="What should have happened?"
-            />
+              <TextInput
+                label="Expected Behavior (optional)"
+                value={expectedBehavior}
+                onChangeText={setExpectedBehavior}
+                mode="outlined"
+                multiline
+                numberOfLines={2}
+                outlineStyle={styles.inputOutline}
+                style={styles.input}
+                placeholder="What did you expect to happen?"
+              />
 
-            <TextInput
-              label="Your Email (optional)"
-              value={email}
-              onChangeText={setEmail}
-              mode="outlined"
-              style={styles.input}
-              placeholder="For follow-up updates"
-              keyboardType="email-address"
-            />
+              <TextInput
+                label="Your Email (optional)"
+                value={email}
+                onChangeText={setEmail}
+                mode="outlined"
+                outlineStyle={styles.inputOutline}
+                style={styles.input}
+                placeholder="For follow-up updates"
+                keyboardType="email-address"
+              />
+            </View>
 
+            {/* Submit Action Button */}
             <Button
               mode="contained"
               onPress={handleSubmit}
               style={styles.submitButton}
+              contentStyle={styles.submitButtonContent}
               loading={isSubmitting}
               disabled={isSubmitting || !title || !description || !selectedCategory}
+              icon={({ size, color }) => (
+                <Send2 size={size} color={color} variant="Bold" />
+              )}
             >
-              Submit Report
+              Submit Bug Report
             </Button>
           </Surface>
 
           {/* Alternative Contact Section */}
-          <Surface style={[styles.card, { backgroundColor: cardBackground }]} elevation={1}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface, fontFamily: 'Nunito-Bold' }]}>
-              Other Ways to Report
+          <Surface style={[styles.card, { backgroundColor: cardBackground, borderColor }]} elevation={0}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Alternative Reporting
             </Text>
 
-            <TouchableOpacity style={styles.contactRow} onPress={handleCopyEmail}>
-              <Message size={20} color={theme.colors.primary} />
+            <TouchableOpacity style={styles.contactRow} onPress={handleCopyEmail} activeOpacity={0.7}>
+              <View style={[styles.contactIconBg, { backgroundColor: theme.colors.primaryContainer }]}>
+                <Message size={18} color={theme.colors.primary} variant="Bold" />
+              </View>
               <View style={styles.contactTextContainer}>
-                <Text style={{ color: theme.colors.onSurface, fontFamily: 'Nunito-Medium' }}>Email Direct</Text>
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: FontSizes.bodySmall }}>{EMAIL_ADDRESS}</Text>
+                <Text style={[styles.contactTitle, { color: theme.colors.onSurface }]}>Direct Email</Text>
+                <Text style={[styles.contactSubtitle, { color: theme.colors.onSurfaceVariant }]}>{EMAIL_ADDRESS}</Text>
               </View>
               <Copy size={18} color={theme.colors.outline} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.contactRow} onPress={handleOpenGitHub}>
-              <Document size={20} color={theme.colors.primary} />
-              <View style={styles.contactTextContainer}>
-                <Text style={{ color: theme.colors.onSurface, fontFamily: 'Nunito-Medium' }}>GitHub Issues</Text>
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: FontSizes.bodySmall }}>Submit issue on repository</Text>
+            <TouchableOpacity style={styles.contactRow} onPress={handleOpenGitHub} activeOpacity={0.7}>
+              <View style={[styles.contactIconBg, { backgroundColor: theme.colors.primaryContainer }]}>
+                <Document size={18} color={theme.colors.primary} variant="Bold" />
               </View>
-              {isOpeningGitHub ? <ActivityIndicator size="small" /> : <InfoCircle size={18} color={theme.colors.outline} />}
+              <View style={styles.contactTextContainer}>
+                <Text style={[styles.contactTitle, { color: theme.colors.onSurface }]}>GitHub Issues</Text>
+                <Text style={[styles.contactSubtitle, { color: theme.colors.onSurfaceVariant }]}>Submit directly to repo</Text>
+              </View>
+              {isOpeningGitHub ? (
+                <ActivityIndicator size={18} color={theme.colors.primary} />
+              ) : (
+                <InfoCircle size={18} color={theme.colors.outline} />
+              )}
             </TouchableOpacity>
           </Surface>
 
-          {/* Device Info */}
-          <Surface style={[styles.card, { backgroundColor: cardBackground }]} elevation={1}>
+          {/* Device Info Card */}
+          <Surface style={[styles.card, { backgroundColor: cardBackground, borderColor }]} elevation={0}>
             <View style={styles.deviceHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface, fontFamily: 'Nunito-Bold', marginBottom: 0 }]}>
-                Device Information
+              <Text style={[styles.sectionTitle, { color: theme.colors.onSurface, marginBottom: 0 }]}>
+                Diagnostic Context
               </Text>
-              <Button mode="text" onPress={handleCopyDeviceInfo} compact icon="content-copy">
-                Copy
-              </Button>
+              <TouchableOpacity onPress={handleCopyDeviceInfo} style={styles.copyBadgeBtn} activeOpacity={0.7}>
+                {isCopied ? (
+                  <TickCircle size={16} color={theme.colors.primary} variant="Bold" />
+                ) : (
+                  <Copy size={16} color={theme.colors.primary} />
+                )}
+                <Text style={[styles.copyBadgeText, { color: theme.colors.primary }]}>
+                  {isCopied ? 'Copied' : 'Copy'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: FontSizes.bodySmall, marginTop: 8 }}>
-              App Version: {appVersion} | Device: {deviceInfo}
-            </Text>
+
+            <View style={styles.badgeRow}>
+              <View style={[styles.infoBadge, { borderColor, backgroundColor: isDark || isAmoled ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+                <Text style={[styles.infoBadgeText, { color: theme.colors.onSurfaceVariant }]}>
+                  App v{appVersion}
+                </Text>
+              </View>
+              <View style={[styles.infoBadge, { borderColor, backgroundColor: isDark || isAmoled ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+                <Text style={[styles.infoBadgeText, { color: theme.colors.onSurfaceVariant }]}>
+                  {deviceInfo}
+                </Text>
+              </View>
+            </View>
           </Surface>
         </ScrollView>
       </View>
@@ -305,55 +440,172 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 16,
   },
-  card: {
+  heroCard: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  iconHeaderBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroTextContainer: {
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: FontSizes.h4,
+    fontFamily: 'Nunito-Bold',
+  },
+  heroSubtitle: {
+    fontSize: FontSizes.bodySmall,
+    fontFamily: 'Nunito-Medium',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  card: {
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   sectionTitle: {
     fontSize: FontSizes.h4,
+    fontFamily: 'Nunito-Bold',
     marginBottom: 12,
   },
   inputLabel: {
     fontSize: FontSizes.bodySmall,
-    fontFamily: 'Nunito-Medium',
-    marginBottom: 8,
-    marginTop: 4,
+    fontFamily: 'Nunito-Bold',
+    marginBottom: 10,
   },
-  chipRow: {
+  categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  chip: {
-    borderRadius: 8,
+  categoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  categoryText: {
+    fontSize: FontSizes.bodySmall,
+  },
+  prioritySegmentContainer: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 4,
+    gap: 4,
+    marginBottom: 20,
+  },
+  priorityItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  priorityItemActive: {
+    elevation: 1,
+  },
+  priorityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  priorityText: {
+    fontSize: 12,
+  },
+  formFields: {
+    gap: 4,
   },
   input: {
-    marginBottom: 8,
     backgroundColor: 'transparent',
+  },
+  inputOutline: {
+    borderRadius: 14,
   },
   charCount: {
     textAlign: 'right',
     fontSize: FontSizes.bodySmall,
+    marginTop: 4,
     marginBottom: 8,
   },
   submitButton: {
     marginTop: 12,
-    borderRadius: 12,
-    paddingVertical: 4,
+    borderRadius: 14,
+  },
+  submitButtonContent: {
+    paddingVertical: 6,
+    flexDirection: 'row-reverse',
   },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 12,
+  },
+  contactIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contactTextContainer: {
     flex: 1,
+  },
+  contactTitle: {
+    fontSize: FontSizes.body,
+    fontFamily: 'Nunito-Bold',
+  },
+  contactSubtitle: {
+    fontSize: FontSizes.bodySmall,
+    fontFamily: 'Nunito-Medium',
   },
   deviceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  copyBadgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  copyBadgeText: {
+    fontSize: FontSizes.bodySmall,
+    fontFamily: 'Nunito-Bold',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  infoBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  infoBadgeText: {
+    fontSize: FontSizes.bodySmall,
+    fontFamily: 'Nunito-Medium',
   },
 });

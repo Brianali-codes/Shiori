@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -8,9 +8,18 @@ import {
   FlatList,
   Dimensions,
   RefreshControl,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
-import { SearchNormal1, Heart, Star, Flash, Category } from 'iconsax-react-nativejs';
-import { Text, useTheme, Button, Avatar } from 'react-native-paper';
+import {
+  SearchNormal1,
+  Heart,
+  Star,
+  Flash,
+  Category,
+  ArrowRight2,
+} from 'iconsax-react-nativejs';
+import { Text, useTheme, Avatar } from 'react-native-paper';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemedView } from '@/components/ThemedComponents';
@@ -24,6 +33,9 @@ import LottieView from 'lottie-react-native';
 const { width } = Dimensions.get('window');
 const LIST_CARD_WIDTH = width * 0.42;
 const LIST_CARD_HEIGHT = LIST_CARD_WIDTH * 1.55;
+const CARD_GAP = 12;
+const SNAP_INTERVAL = LIST_CARD_WIDTH + CARD_GAP;
+
 const GRID_CARD_WIDTH = (width - 44) / 2;
 const GRID_CARD_HEIGHT = GRID_CARD_WIDTH * 1.55;
 
@@ -33,6 +45,11 @@ const categories = [
   { id: 'anime', label: 'Anime' },
   { id: 'people', label: 'People' },
 ];
+
+// Interface extending WallpaperPreview with a unique key for infinite looping
+interface FeaturedItem extends WallpaperPreview {
+  virtualId?: string;
+}
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -58,8 +75,21 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  // Featured Auto-Scroll & Indicator state
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const featuredFlatListRef = useRef<FlatList<FeaturedItem>>(null);
+
   // Guard against duplicate concurrent fetches
   const isFetchingRef = useRef(false);
+
+  // Generate virtual dataset for infinite looping
+  const displayFeaturedWallpapers: FeaturedItem[] = useMemo(() => {
+    if (featuredWallpapers.length <= 1) return featuredWallpapers;
+    return Array.from({ length: 600 }, (_, i) => ({
+      ...featuredWallpapers[i % featuredWallpapers.length],
+      virtualId: `${featuredWallpapers[i % featuredWallpapers.length].id}-v-${i}`,
+    }));
+  }, [featuredWallpapers]);
 
   const getCategoryParam = (category: string) => {
     if (category === 'general') return '100';
@@ -136,7 +166,8 @@ export default function HomeScreen() {
         [{ categories: categoryParam, page: 1 }]
       );
 
-      setFeaturedWallpapers(featuredData.slice(0, 9));
+      const sliceFeatured = featuredData.slice(0, 9);
+      setFeaturedWallpapers(sliceFeatured);
       setLatestWallpapers(latestData.slice(0, 9));
       setTopWallpapers(topData.slice(0, 9));
       setMoreWallpapers(moreData.slice(0, 16));
@@ -156,6 +187,46 @@ export default function HomeScreen() {
     loadWallpapers();
   }, [selectedCategory, loadWallpapers]);
 
+  // Set initial scroll position to middle set for infinite loop headroom
+  useEffect(() => {
+    if (featuredWallpapers.length > 1) {
+      const initialIndex = Math.floor(300 / featuredWallpapers.length) * featuredWallpapers.length;
+      setFeaturedIndex(initialIndex);
+      setTimeout(() => {
+        featuredFlatListRef.current?.scrollToIndex({
+          index: initialIndex,
+          animated: false,
+        });
+      }, 100);
+    }
+  }, [featuredWallpapers]);
+
+  // Infinite Auto-scroll Timer for Featured Section
+  useEffect(() => {
+    if (featuredWallpapers.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setFeaturedIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1;
+        featuredFlatListRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+        return nextIndex;
+      });
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [featuredWallpapers]);
+
+  const onFeaturedScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const currentIndex = Math.round(contentOffsetX / SNAP_INTERVAL);
+    if (currentIndex >= 0 && currentIndex < displayFeaturedWallpapers.length && currentIndex !== featuredIndex) {
+      setFeaturedIndex(currentIndex);
+    }
+  };
+
   const loadMoreWallpapers = async () => {
     if (loadingMore || !hasMore) return;
 
@@ -173,8 +244,8 @@ export default function HomeScreen() {
         return;
       }
 
-      setMoreWallpapers(prev => [...prev, ...data]);
-      setMorePage(prev => prev + 1);
+      setMoreWallpapers((prev) => [...prev, ...data]);
+      setMorePage((prev) => prev + 1);
     } catch (error) {
       console.error('Error loading more wallpapers:', error);
     } finally {
@@ -219,6 +290,9 @@ export default function HomeScreen() {
       </View>
     );
   }
+
+  // Calculate normalized index for indicator dots
+  const activeRealIndex = featuredWallpapers.length > 0 ? featuredIndex % featuredWallpapers.length : 0;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -282,29 +356,63 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
 
-          {/* Featured Showcase */}
+          {/* Featured Showcase Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleRow}>
                 <Star size={18} color={theme.colors.primary} variant="Bold" />
                 <Text style={styles.sectionTitle}>Featured Showcase</Text>
               </View>
-              <Button mode="text" onPress={() => router.push('/explore')} compact labelStyle={styles.seeAllLabel}>
-                Explore
-              </Button>
+              <TouchableOpacity
+                onPress={() => router.push('/explore')}
+                activeOpacity={0.7}
+                style={styles.exploreIconBtn}
+              >
+                <ArrowRight2 size={20} color={theme.colors.primary} variant="Outline" />
+              </TouchableOpacity>
             </View>
 
             <FlatList
-              data={featuredWallpapers}
+              ref={featuredFlatListRef}
+              data={displayFeaturedWallpapers}
               horizontal
               showsHorizontalScrollIndicator={false}
               renderItem={renderListCard}
               contentContainerStyle={styles.horizontalList}
-              snapToInterval={LIST_CARD_WIDTH + 12}
+              snapToInterval={SNAP_INTERVAL}
               decelerationRate="fast"
               snapToAlignment="start"
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.virtualId || item.id}
+              onMomentumScrollEnd={onFeaturedScroll}
+              getItemLayout={(_, index) => ({
+                length: SNAP_INTERVAL,
+                offset: SNAP_INTERVAL * index,
+                index,
+              })}
+              onScrollToIndexFailed={(info) => {
+                setTimeout(() => {
+                  featuredFlatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+                }, 500);
+              }}
             />
+
+            {/* Scroll Indicator */}
+            {featuredWallpapers.length > 0 && (
+              <View style={styles.indicatorContainer}>
+                {featuredWallpapers.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.indicatorDot,
+                      index === activeRealIndex && [
+                        styles.indicatorDotActive,
+                        { backgroundColor: theme.colors.primary },
+                      ],
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
           </View>
 
           {/* Latest Section */}
@@ -314,9 +422,13 @@ export default function HomeScreen() {
                 <Flash size={18} color={theme.colors.primary} variant="Bold" />
                 <Text style={styles.sectionTitle}>Fresh Drops</Text>
               </View>
-              <Button mode="text" onPress={() => router.push('/explore')} compact labelStyle={styles.seeAllLabel}>
-                Explore
-              </Button>
+              <TouchableOpacity
+                onPress={() => router.push('/explore')}
+                activeOpacity={0.7}
+                style={styles.exploreIconBtn}
+              >
+                <ArrowRight2 size={20} color={theme.colors.primary} variant="Outline" />
+              </TouchableOpacity>
             </View>
 
             <FlatList
@@ -325,7 +437,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               renderItem={renderListCard}
               contentContainerStyle={styles.horizontalList}
-              snapToInterval={LIST_CARD_WIDTH + 12}
+              snapToInterval={SNAP_INTERVAL}
               decelerationRate="fast"
               snapToAlignment="start"
               keyExtractor={(item) => item.id}
@@ -339,9 +451,13 @@ export default function HomeScreen() {
                 <Heart size={18} color={theme.colors.primary} variant="Bold" />
                 <Text style={styles.sectionTitle}>Top Rated</Text>
               </View>
-              <Button mode="text" onPress={() => router.push('/explore')} compact labelStyle={styles.seeAllLabel}>
-                Explore
-              </Button>
+              <TouchableOpacity
+                onPress={() => router.push('/explore')}
+                activeOpacity={0.7}
+                style={styles.exploreIconBtn}
+              >
+                <ArrowRight2 size={20} color={theme.colors.primary} variant="Outline" />
+              </TouchableOpacity>
             </View>
 
             <FlatList
@@ -350,7 +466,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               renderItem={renderListCard}
               contentContainerStyle={styles.horizontalList}
-              snapToInterval={LIST_CARD_WIDTH + 12}
+              snapToInterval={SNAP_INTERVAL}
               decelerationRate="fast"
               snapToAlignment="start"
               keyExtractor={(item) => item.id}
@@ -508,9 +624,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h4,
   },
-  seeAllLabel: {
-    fontFamily: 'Nunito-Bold',
-    fontSize: FontSizes.caption,
+  exploreIconBtn: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+
+  /* Scroll Indicator */
+  indicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  indicatorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  indicatorDotActive: {
+    width: 18,
+    height: 6,
+    borderRadius: 3,
   },
 
   /* Card Components */
@@ -520,7 +657,7 @@ const styles = StyleSheet.create({
   },
   horizontalList: {
     paddingHorizontal: 16,
-    gap: 12,
+    gap: CARD_GAP,
   },
   listCard: {
     width: LIST_CARD_WIDTH,

@@ -901,11 +901,11 @@ export default function SettingsScreen() {
                 <Button
                   mode="contained"
                   style={[styles.signInButton, { backgroundColor: paperTheme.colors.primary }]}
-                  
+
                   loading={authState.loading}
                   disabled={authState.loading || authState.hasApiKey}
                   labelStyle={{ fontSize: fontSizes.body, fontFamily: 'Nunito-SemiBold', color: paperTheme.colors.onPrimary }}
-    
+
                   onPress={() => Linking.openURL('https://https://brian-ali.netlify.app/')}
                 >
                   About Me.
@@ -980,90 +980,42 @@ export default function SettingsScreen() {
 
           <Card style={styles.settingsSection} mode="elevated">
             <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>DOWNLOADS</Text>
+              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>
+                QUICK LINKS
+              </Text>
 
               <List.Item
-                title="Download on Wi-Fi Only"
+                title="Favorites"
                 titleStyle={{ fontSize: fontSizes.body }}
-                description="Save mobile data by downloading only on Wi-Fi"
+                description="View your saved wallpapers and items"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Wifi variant="Broken" size={size} color={color} />
-                )} />}
-                right={() => (
-                  loadingStates.wifiOnly ? (
-                    <View style={{ marginRight: 8 }}>
-                      <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                    </View>
-                  ) : (
-                    <AnimatedSwitch
-                      value={settings.downloadOnWifi}
-                      onValueChange={handleWifiOnlyToggle}
-                    />
-                  )
+                left={props => (
+                  <List.Icon
+                    {...props}
+                    icon={({ size, color }) => (
+                      <Star variant="Broken" size={size} color={color} />
+                    )}
+                  />
                 )}
-                disabled={loadingStates.wifiOnly}
+                right={props => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => router.push('/favorites')}
               />
 
               <List.Item
-                title="High Quality Images"
+                title="Report a Bug"
                 titleStyle={{ fontSize: fontSizes.body }}
-                description="Load higher resolution thumbnails and previews"
+                description="Report issues or offer feedback to improve the app"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Star variant="Broken" size={size} color={color} />
-                )} />}
-                right={() => (
-                  loadingStates.highQuality ? (
-                    <View style={{ marginRight: 8 }}>
-                      <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                    </View>
-                  ) : (
-                    <AnimatedSwitch
-                      value={settings.highQualityThumbs}
-                      onValueChange={handleHighQualityToggle}
-                    />
-                  )
+                left={props => (
+                  <List.Icon
+                    {...props}
+                    icon={({ size, color }) => (
+                      <InfoCircle variant="Broken" size={size} color={color} />
+                    )}
+                  />
                 )}
-                disabled={loadingStates.highQuality}
-              />
-
-              <List.Item
-                title="Download Location"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description={settings.downloadLocation === 'gallery' ? 'Save to Gallery (Shiori album)' : 'Save to App\'s Private Folder'}
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Folder variant="Broken" size={size} color={color} />
-                )} />}
-                onPress={() => updateDialogStates({ downloadLocationVisible: true })}
-                right={props => loadingStates.downloadLocation ?
-                  <ActivityIndicator size="small" color={paperTheme.colors.primary} style={{ marginRight: 8 }} /> :
-                  <List.Icon {...props} icon="chevron-right" />}
-                disabled={loadingStates.downloadLocation}
-              />
-
-              <List.Item
-                title="Auto-download on Favorite"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description="Automatically download wallpapers when marked as favorite"
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Star variant="Broken" size={size} color={color} />
-                )} />}
-                right={() => (
-                  loadingStates.autoDownload ? (
-                    <View style={{ marginRight: 8 }}>
-                      <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                    </View>
-                  ) : (
-                    <AnimatedSwitch
-                      value={settings.autoDownloadOnFavorite}
-                      onValueChange={handleAutoDownloadToggle}
-                    />
-                  )
-                )}
-                disabled={loadingStates.autoDownload}
+                right={props => <List.Icon {...props} icon="chevron-right" />}
+                onPress={() => router.push('/bug-report')}
               />
             </Card.Content>
           </Card>
@@ -1092,56 +1044,14 @@ export default function SettingsScreen() {
             </Card.Content>
           </Card>
 
-         
-
-          <Card style={styles.settingsSection} mode="elevated">
-            <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>STORAGE</Text>
-
-              <List.Item
-                title="Clear Cache"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description="Free up space by clearing cached images"
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Trash variant="Broken" size={size} color={color} />
-                )} />}
-                onPress={clearCache}
-                right={() => loadingStates.cache ? (
-                  <View style={{ marginRight: 8 }}>
-                    <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                  </View>
-                ) : null}
-                disabled={loadingStates.cache}
-              />
-
-              <List.Item
-                title="Clear Favorites"
-                titleStyle={{ fontSize: fontSizes.body }}
-                description="Remove all your favorite wallpapers"
-                descriptionStyle={{ fontSize: fontSizes.caption }}
-                left={props => <List.Icon {...props} icon={({ size, color }) => (
-                  <Trash variant="Broken" size={size} color={color} />
-                )} />}
-                onPress={clearFavorites}
-                right={() => loadingStates.favorites ? (
-                  <View style={{ marginRight: 8 }}>
-                    <ActivityIndicator size={24} color={paperTheme.colors.primary} />
-                  </View>
-                ) : null}
-                disabled={loadingStates.favorites}
-              />
-            </Card.Content>
-          </Card>
-
-          <Card style={styles.settingsSection} mode="elevated">
+          <Card style={styles.settingsSection2} mode="elevated">
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>ABOUT</Text>
 
               <List.Item
                 title="About Shiori"
                 titleStyle={{ fontSize: fontSizes.body }}
-                description="Version 1.0.0"
+                description="Version 1.1.0"
                 descriptionStyle={{ fontSize: fontSizes.caption }}
                 left={props => <List.Icon {...props} icon={({ size, color }) => (
                   <InfoCircle variant="Broken" size={size} color={color} />
@@ -1402,49 +1312,6 @@ export default function SettingsScreen() {
           </Dialog>
 
           <Dialog
-            visible={clearCacheDialogVisible}
-            onDismiss={() => setClearCacheDialogVisible(false)}
-          >
-            <Dialog.Title>Clear Cache</Dialog.Title>
-            <Dialog.Content>
-              <Text variant="bodyMedium">Are you sure you want to clear all cached wallpapers? This will free up storage space.</Text>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={() => setClearCacheDialogVisible(false)}>Cancel</Button>
-              <Button
-                onPress={async () => {
-                  try {
-                    updateLoadingStates({ cache: true });
-                    const cacheDir = FileSystem.cacheDirectory;
-                    if (cacheDir) {
-                      await FileSystem.deleteAsync(cacheDir, { idempotent: true });
-                      await FileSystem.makeDirectoryAsync(cacheDir);
-                    }
-                    if (Platform.OS === 'android') {
-                      ToastAndroid.show('Cache cleared successfully', ToastAndroid.SHORT);
-                    } else {
-                      Alert.alert('Success', 'Cache cleared successfully');
-                    }
-                  } catch (error) {
-                    console.error('Failed to clear cache:', error);
-                    if (Platform.OS === 'android') {
-                      ToastAndroid.show('Failed to clear cache', ToastAndroid.SHORT);
-                    } else {
-                      Alert.alert('Error', 'Failed to clear cache');
-                    }
-                  } finally {
-                    updateLoadingStates({ cache: false });
-                    setClearCacheDialogVisible(false);
-                  }
-                }}
-                textColor={paperTheme.colors.error}
-              >
-                Clear
-              </Button>
-            </Dialog.Actions>
-          </Dialog>
-
-          <Dialog
             visible={aboutDialogVisible}
             onDismiss={() => setAboutDialogVisible(false)}
             style={{ backgroundColor: paperTheme.colors.surface }}
@@ -1455,7 +1322,7 @@ export default function SettingsScreen() {
             <Dialog.Content>
               <View style={{ alignItems: 'center', paddingVertical: 8 }}>
                 <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurface, marginBottom: 4 }}>
-                  Version 1.0.0
+                  Version 1.1.0
                 </Text>
                 <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, textAlign: 'center', marginBottom: 16 }}>
                   A beautiful wallpaper browser app using the Wallhaven API.
@@ -1584,6 +1451,13 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
     elevation: 2,
+  },
+  settingsSection2: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    elevation: 2,
+    marginBottom: 88,
   },
   sectionTitle: {
     marginBottom: 8,

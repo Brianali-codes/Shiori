@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { Home, LocationDiscover, Setting } from 'iconsax-react-nativejs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -31,6 +32,17 @@ function TabBar() {
 
   return (
     <Tabs
+      tabBar={(props) => (
+        <View
+          style={[
+            styles.tabBarWrapper,
+            { bottom: Math.max(insets.bottom + 8, 18) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <BottomTabBar {...props} />
+        </View>
+      )}
       screenOptions={{
         tabBarActiveTintColor: isDark || isAmoled ? '#FFFFFF' : '#000000',
         tabBarInactiveTintColor: isDark || isAmoled ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.4)',
@@ -50,10 +62,12 @@ function TabBar() {
           alignItems: 'center',
         },
         tabBarStyle: {
-          position: 'absolute',
-          bottom: Math.max(insets.bottom + 8, 18),
-          left: 44, // Increased from 24 to make the tab bar narrower
-          right: 44, // Increased from 24 to make the tab bar narrower
+          position: 'relative',
+          left: 'auto',
+          right: 'auto',
+          bottom: 'auto',
+          width: '85%',
+          maxWidth: 340,
           height: 60,
           borderRadius: 30,
           backgroundColor: getTabBarBackground(),
@@ -107,7 +121,6 @@ function TabBar() {
         }}
       />
 
-      {/* Hidden from tab bar, but routes remain active for navigation */}
       <Tabs.Screen name="favorites" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="bug-report" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="premium" options={{ href: null, headerShown: false }} />
@@ -124,6 +137,13 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabBarWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,9 +153,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 6,
   },
-  activeTabPill: {
-    // Dynamic active background applied inline based on theme
-  },
+  activeTabPill: {},
   tabLabel: {
     fontSize: FontSizes.tabLabel || 12,
     fontFamily: 'Nunito-Medium',

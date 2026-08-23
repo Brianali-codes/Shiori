@@ -1,16 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, RefreshControl, ScrollView, Alert, Platform, Linking, ToastAndroid, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  RefreshControl,
+  ScrollView,
+  Alert,
+  Platform,
+  Linking,
+  ToastAndroid,
+  TouchableOpacity,
+  Dimensions,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { wallhavenAPI } from '../services/wallhaven';
-import { WallpaperPreview } from '../services/wallhaven';
+import { wallhavenAPI, WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { Heart, ArrowDown2, InfoCircle, SearchNormal1, Sort, ArrowUp2, Filter, ArrowLeft2, ArrowRight2 } from 'iconsax-react-nativejs';
+import {
+  Heart,
+  ArrowDown2,
+  InfoCircle,
+  SearchNormal1,
+  Sort,
+  ArrowUp2,
+  Filter,
+  ArrowLeft2,
+  ArrowRight2,
+} from 'iconsax-react-nativejs';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
@@ -20,7 +42,8 @@ const { width: screenWidth } = Dimensions.get('window');
 const COLUMN_COUNT = 2;
 const ITEM_MARGIN = 12;
 const CONTAINER_PADDING = 12;
-const ITEM_WIDTH = (screenWidth - (CONTAINER_PADDING * 2) - (ITEM_MARGIN * (COLUMN_COUNT - 1))) / COLUMN_COUNT;
+const ITEM_WIDTH =
+  (screenWidth - CONTAINER_PADDING * 2 - ITEM_MARGIN * (COLUMN_COUNT - 1)) / COLUMN_COUNT;
 
 interface MasonryItem extends WallpaperPreview {
   height: number;
@@ -32,11 +55,18 @@ const MasonryGrid: React.FC<{
   renderItem: (item: MasonryItem, index: number) => React.ReactElement;
   refreshControl?: React.ReactElement;
   ListFooterComponent?: () => React.ReactElement | null;
-}> = ({ data, renderItem, refreshControl, ListFooterComponent }) => {
-  const [columns, setColumns] = useState<MasonryItem[][]>(Array(COLUMN_COUNT).fill([]).map(() => []));
+  contentContainerStyle?: StyleProp<ViewStyle>;
+}> = ({ data, renderItem, refreshControl, ListFooterComponent, contentContainerStyle }) => {
+  const [columns, setColumns] = useState<MasonryItem[][]>(
+    Array(COLUMN_COUNT)
+      .fill([])
+      .map(() => [])
+  );
 
   useEffect(() => {
-    const newColumns: MasonryItem[][] = Array(COLUMN_COUNT).fill([]).map(() => []);
+    const newColumns: MasonryItem[][] = Array(COLUMN_COUNT)
+      .fill([])
+      .map(() => []);
     const newColumnHeights = Array(COLUMN_COUNT).fill(0);
 
     data.forEach((item) => {
@@ -55,7 +85,11 @@ const MasonryGrid: React.FC<{
   );
 
   return (
-    <ScrollView refreshControl={refreshControl} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      refreshControl={refreshControl}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={contentContainerStyle}
+    >
       <View style={styles.masonryContainer}>
         {columns.map((columnData, columnIndex) => renderColumn(columnData, columnIndex))}
       </View>
@@ -77,7 +111,12 @@ export default function ExploreScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Dynamic clearance for floating tab bar
+  const floatingTabBarClearance = 60 + Math.max(insets.bottom + 8, 18) + 16;
 
   // Load NSFW setting and favorites on mount
   useEffect(() => {
@@ -154,84 +193,6 @@ export default function ExploreScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (error) {
       console.error('Error toggling favorite:', error);
-    }
-  };
-
-  const downloadWallpaper = async (wallpaper: WallpaperPreview) => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Shiori needs storage permission to save wallpapers to your device.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-        return;
-      }
-
-      const downloadLocation = (await AsyncStorage.getItem('downloadLocation')) || 'gallery';
-      const timestamp = new Date().getTime();
-      const fileExt = wallpaper.file_type ? wallpaper.file_type.split('/')[1] : 'jpg';
-      const fileName = `shiori_${wallpaper.id}_${timestamp}.${fileExt}`;
-
-      let fileUri: string;
-      const imageUrl = wallpaper.path || wallpaper.thumbs.large;
-
-      if (downloadLocation === 'gallery') {
-        const tempUri = FileSystem.cacheDirectory + fileName;
-        const downloadResumable = FileSystem.createDownloadResumable(imageUrl, tempUri);
-
-        const result = await downloadResumable.downloadAsync();
-        if (!result) throw new Error('Download failed');
-
-        const asset = await MediaLibrary.createAssetAsync(result.uri);
-
-        try {
-          const album = await MediaLibrary.getAlbumAsync('Shiori');
-          if (album) {
-            await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-          } else {
-            await MediaLibrary.createAlbumAsync('Shiori', asset, false);
-          }
-        } catch (error) {
-          console.error('Album error:', error);
-        }
-
-        await FileSystem.deleteAsync(tempUri, { idempotent: true });
-
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Wallpaper saved to gallery', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', 'Wallpaper saved to your gallery');
-        }
-      } else {
-        const privateDir = FileSystem.documentDirectory + 'wallpapers/';
-
-        const dirInfo = await FileSystem.getInfoAsync(privateDir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(privateDir, { intermediates: true });
-        }
-
-        fileUri = privateDir + fileName;
-        const downloadResumable = FileSystem.createDownloadResumable(imageUrl, fileUri);
-
-        const result = await downloadResumable.downloadAsync();
-        if (!result) throw new Error('Download failed');
-
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Wallpaper saved to app storage', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Success', 'Wallpaper saved to app storage');
-        }
-      }
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Download error:', error);
-      Alert.alert('Error', 'Failed to download the wallpaper. Please try again.');
     }
   };
 
@@ -371,7 +332,7 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'right', 'left', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ThemedView style={styles.container}>
         <StatusBar style="auto" />
         <Stack.Screen
@@ -488,6 +449,7 @@ export default function ExploreScreen() {
             <MasonryGrid
               data={wallpapers}
               renderItem={renderWallpaper}
+              contentContainerStyle={{ paddingBottom: floatingTabBarClearance }}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }
@@ -617,7 +579,6 @@ const styles = StyleSheet.create({
   masonryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
   },
   column: {
     width: ITEM_WIDTH,
@@ -661,9 +622,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heartIcon: {
-    margin: 0,
-  },
-  downloadIcon: {
     margin: 0,
   },
   infoGradient: {
