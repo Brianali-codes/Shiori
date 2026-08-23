@@ -919,52 +919,6 @@ export default function SettingsScreen() {
               <Text variant="titleSmall" style={[styles.sectionTitle, { fontSize: fontSizes.caption }]}>
                 APPEARANCE
               </Text>
-
-              <View style={styles.themeOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.themeOption,
-                    theme === 'light' && styles.selectedTheme,
-                    theme === 'light' && { borderColor: paperTheme.colors.primary },
-                    { backgroundColor: paperTheme.colors.surfaceVariant }
-                  ]}
-                  onPress={() => handleThemeChange('light')}
-                >
-                  <View style={[styles.themePreview, { backgroundColor: '#FFFFFF' }]} />
-                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
-                    Light
-                  </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.themeOption,
-                    theme === 'dark' && styles.selectedTheme,
-                    theme === 'dark' && { borderColor: paperTheme.colors.primary },
-                    { backgroundColor: paperTheme.colors.surfaceVariant }
-                  ]}
-                  onPress={() => handleThemeChange('dark')}
-                >
-                  <View style={[styles.themePreview, { backgroundColor: '#151718' }]} />
-                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
-                    Dark
-                  </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.themeOption,
-                    theme === 'amoled' && styles.selectedTheme,
-                    theme === 'amoled' && { borderColor: paperTheme.colors.primary },
-                    { backgroundColor: paperTheme.colors.surfaceVariant }
-                  ]}
-                  onPress={() => handleThemeChange('amoled')}
-                >
-                  <View style={[styles.themePreview, { backgroundColor: '#000000' }]} />
-                  <ThemedText style={[styles.themeText, { fontSize: fontSizes.caption, color: paperTheme.colors.onSurfaceVariant }]}>
-                    AMOLED
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
-
               <List.Item
                 title="Font Size"
                 titleStyle={{ fontSize: fontSizes.body }}

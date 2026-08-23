@@ -20,8 +20,11 @@ import {
   Flash,
   Category,
   ArrowRight2,
+  SearchNormal1,
+  Star1,
 } from 'iconsax-react-nativejs';
-import { Text, useTheme, Avatar } from 'react-native-paper';
+import { Text, useTheme as usePaperTheme, Avatar } from 'react-native-paper';
+import { useThemeContext } from '@/contexts/ThemeContext';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemedView } from '@/components/ThemedComponents';
@@ -47,13 +50,12 @@ const categories = [
   { id: 'people', label: 'People' },
 ];
 
-// Interface extending WallpaperPreview with a unique key for infinite looping
 interface FeaturedItem extends WallpaperPreview {
   virtualId?: string;
 }
 
-// Skeleton Component with Pulse Animation
-const SkeletonItem = ({ style }: { style: any }) => {
+// Adaptive Skeleton Item
+const SkeletonItem = ({ style, isLight }: { style: any; isLight: boolean }) => {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -81,7 +83,7 @@ const SkeletonItem = ({ style }: { style: any }) => {
         style,
         {
           opacity,
-          backgroundColor: 'rgba(255, 255, 255, 0.12)',
+          backgroundColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
         },
       ]}
     />
@@ -89,16 +91,26 @@ const SkeletonItem = ({ style }: { style: any }) => {
 };
 
 export default function HomeScreen() {
-  const theme = useTheme();
+  const paperTheme = usePaperTheme();
+  const { theme, setTheme } = useThemeContext();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Safely get bottom tab bar height with fallback if rendered outside tab context
+  const isLight = theme === 'light';
+  const dynamicIconColor = isLight ? paperTheme.colors.onSurface : '#FFF';
+
+  // Dynamic Theme Colors
+  const dynamicGlassBg = isLight ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.04)';
+  const dynamicGlassBorder = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
+  const dynamicBadgeBg = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.06)';
+  const dynamicBadgeBorder = isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
+  const dynamicSubtextColor = isLight ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.75)';
+
   let tabBarHeight = insets.bottom + 80;
   try {
     tabBarHeight = useBottomTabBarHeight();
   } catch (e) {
-    // Uses fallback height
+    // Fallback height
   }
 
   const [featuredWallpapers, setFeaturedWallpapers] = useState<WallpaperPreview[]>([]);
@@ -112,18 +124,11 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // Theme modal state
   const [themeModalVisible, setThemeModalVisible] = useState(false);
-  const [selectedThemeOption, setSelectedThemeOption] = useState<'dark' | 'light' | 'amoled'>('dark');
-
-  // Featured Auto-Scroll & Indicator state
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const featuredFlatListRef = useRef<FlatList<FeaturedItem>>(null);
-
-  // Guard against duplicate concurrent fetches
   const isFetchingRef = useRef(false);
 
-  // Generate virtual dataset for infinite looping (reduced multiplier to 30)
   const displayFeaturedWallpapers: FeaturedItem[] = useMemo(() => {
     if (featuredWallpapers.length <= 1) return featuredWallpapers;
     return Array.from({ length: 30 }, (_, i) => ({
@@ -199,7 +204,7 @@ export default function HomeScreen() {
 
       const topData = await fetchWithFallback(
         { categories: categoryParam, sorting: 'toplist', order: 'desc', page: 1 },
-        [{ categories: categoryParam, sorting: 'views', order: 'desc', page: 1 }]
+        [{ categories: categoryParam, page: 1 }]
       );
 
       const moreData = await fetchWithFallback(
@@ -207,8 +212,7 @@ export default function HomeScreen() {
         [{ categories: categoryParam, page: 1 }]
       );
 
-      const sliceFeatured = featuredData.slice(0, 9);
-      setFeaturedWallpapers(sliceFeatured);
+      setFeaturedWallpapers(featuredData.slice(0, 9));
       setLatestWallpapers(latestData.slice(0, 9));
       setTopWallpapers(topData.slice(0, 9));
       setMoreWallpapers(moreData.slice(0, 16));
@@ -228,7 +232,6 @@ export default function HomeScreen() {
     loadWallpapers();
   }, [selectedCategory, loadWallpapers]);
 
-  // Set initial scroll position to middle set for infinite loop headroom
   useEffect(() => {
     if (featuredWallpapers.length > 1) {
       const initialIndex = Math.floor(15 / featuredWallpapers.length) * featuredWallpapers.length;
@@ -242,7 +245,6 @@ export default function HomeScreen() {
     }
   }, [featuredWallpapers]);
 
-  // Infinite Auto-scroll Timer for Featured Section
   useEffect(() => {
     if (featuredWallpapers.length <= 1) return;
 
@@ -304,11 +306,16 @@ export default function HomeScreen() {
     await loadWallpapers(true);
   };
 
-  // Memoized render function to fix infinite update loop
   const renderListCard = useCallback(
     ({ item }: { item: WallpaperPreview }) => (
       <TouchableOpacity
-        style={styles.listCard}
+        style={[
+          styles.listCard,
+          {
+            backgroundColor: dynamicGlassBg,
+            borderColor: dynamicGlassBorder,
+          },
+        ]}
         onPress={() => navigateToWallpaper(item.id)}
         activeOpacity={0.88}
       >
@@ -323,79 +330,73 @@ export default function HomeScreen() {
         </LinearGradient>
       </TouchableOpacity>
     ),
-    [navigateToWallpaper]
+    [navigateToWallpaper, dynamicGlassBg, dynamicGlassBorder]
   );
 
-  if (loading && !refreshing) {
+ if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ThemedView style={styles.container}>
-          <StatusBar style="light" />
+          <StatusBar style={isLight ? 'dark' : 'light'} />
           <Stack.Screen options={{ headerShown: false }} />
 
           {/* Header Skeleton */}
-          <View style={styles.headerContainer}>
+          <View
+            style={[
+              styles.headerContainer,
+              { backgroundColor: dynamicGlassBg, borderColor: dynamicGlassBorder },
+            ]}
+          >
             <View style={styles.headerBrand}>
-              <SkeletonItem style={{ width: 40, height: 40, borderRadius: 20 }} />
+              <SkeletonItem isLight={isLight} style={{ width: 42, height: 42, borderRadius: 21 }} />
               <View style={styles.headerTextCol}>
-                <SkeletonItem style={{ width: 80, height: 18, borderRadius: 4, marginBottom: 6 }} />
-                <SkeletonItem style={{ width: 110, height: 12, borderRadius: 4 }} />
+                <SkeletonItem isLight={isLight} style={{ width: 120, height: 18, borderRadius: 6, marginBottom: 6 }} />
+                <SkeletonItem isLight={isLight} style={{ width: 90, height: 12, borderRadius: 4 }} />
               </View>
             </View>
-            <SkeletonItem style={{ width: 40, height: 40, borderRadius: 16 }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <SkeletonItem isLight={isLight} style={{ width: 38, height: 38, borderRadius: 16 }} />
+              <SkeletonItem isLight={isLight} style={{ width: 38, height: 38, borderRadius: 16 }} />
+            </View>
           </View>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {/* Categories Pills Skeleton */}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Categories Skeleton */}
             <View style={styles.categoriesSection}>
-              <View style={[styles.categoriesScroll, { flexDirection: 'row' }]}>
-                {[1, 2, 3, 4].map((i) => (
-                  <SkeletonItem key={i} style={{ width: 70, height: 34, borderRadius: 20 }} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesScroll}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <SkeletonItem isLight={isLight} key={i} style={{ width: 80, height: 34, borderRadius: 20 }} />
                 ))}
-              </View>
+              </ScrollView>
             </View>
 
-            {/* Featured Showcase Skeleton */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <SkeletonItem style={{ width: 150, height: 20, borderRadius: 6 }} />
+            {/* Horizontal Sections Skeleton (Featured Showcase, Fresh Drops, Top Rated) */}
+            {[1, 2, 3].map((sectionKey) => (
+              <View style={styles.section} key={sectionKey}>
+                <View style={styles.sectionHeader}>
+                  <SkeletonItem isLight={isLight} style={{ width: 140, height: 20, borderRadius: 6 }} />
+                  <SkeletonItem isLight={isLight} style={{ width: 32, height: 32, borderRadius: 12 }} />
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+                  {[1, 2, 3].map((i) => (
+                    <SkeletonItem isLight={isLight} key={i} style={styles.listCard} />
+                  ))}
+                </ScrollView>
               </View>
-              <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
-                {[1, 2, 3].map((i) => (
-                  <SkeletonItem
-                    key={i}
-                    style={styles.listCard}
-                  />
-                ))}
-              </View>
-            </View>
-
-            {/* Fresh Drops Skeleton */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <SkeletonItem style={{ width: 120, height: 20, borderRadius: 6 }} />
-              </View>
-              <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
-                {[1, 2, 3].map((i) => (
-                  <SkeletonItem
-                    key={i}
-                    style={styles.listCard}
-                  />
-                ))}
-              </View>
-            </View>
+            ))}
 
             {/* Discover More Grid Skeleton */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <SkeletonItem style={{ width: 130, height: 20, borderRadius: 6 }} />
+                <SkeletonItem isLight={isLight} style={{ width: 130, height: 20, borderRadius: 6 }} />
               </View>
               <View style={styles.gridContainer}>
                 {[1, 2, 3, 4].map((i) => (
-                  <SkeletonItem
-                    key={i}
-                    style={styles.gridCard}
-                  />
+                  <SkeletonItem isLight={isLight} key={i} style={styles.gridCard} />
                 ))}
               </View>
             </View>
@@ -405,35 +406,88 @@ export default function HomeScreen() {
     );
   }
 
-  // Calculate normalized index for indicator dots
   const activeRealIndex = featuredWallpapers.length > 0 ? featuredIndex % featuredWallpapers.length : 0;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ThemedView style={styles.container}>
-        <StatusBar style="light" />
+        <StatusBar style={isLight ? 'dark' : 'light'} />
         <Stack.Screen options={{ headerShown: false }} />
 
-        {/* Floating Header */}
-        <View style={styles.headerContainer}>
+        {/* Dynamic Floating Header */}
+        <View
+          style={[
+            styles.headerContainer,
+            {
+              backgroundColor: dynamicGlassBg,
+              borderColor: dynamicGlassBorder,
+            },
+          ]}
+        >
           <View style={styles.headerBrand}>
-            <Avatar.Image size={40} source={require('@/assets/images/shiori.png')} />
+            <LinearGradient
+              colors={[paperTheme.colors.primary, isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.2)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoGradientRing}
+            >
+              <Avatar.Image size={38} source={require('@/assets/images/shiori.png')} />
+            </LinearGradient>
+
             <View style={styles.headerTextCol}>
-              <Text style={styles.appTitle}>Shiori</Text>
-              <Text style={styles.subtitle}>Curated Aesthetics</Text>
+              <Text style={[styles.appTitle, { color: paperTheme.colors.onSurface }]}>
+                Shiori Wallpapers
+              </Text>
+
+              <View
+                style={[
+                  styles.subtitleBadge,
+                  {
+                    backgroundColor: dynamicBadgeBg,
+                    borderColor: dynamicBadgeBorder,
+                  },
+                ]}
+              >
+                <Star1 size={10} color={paperTheme.colors.primary} variant="Bold" />
+                <Text style={[styles.subtitleBadgeText, { color: dynamicSubtextColor }]}>
+                  Curated Aesthetics
+                </Text>
+              </View>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.glassIconButton}
-            onPress={() => setThemeModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <SunFog size={18} color="#FFF" variant="Outline" />
-          </TouchableOpacity>
+          <View style={styles.actionGroup}>
+            <TouchableOpacity
+              style={[
+                styles.glassIconButton,
+                {
+                  backgroundColor: dynamicBadgeBg,
+                  borderColor: dynamicBadgeBorder,
+                },
+              ]}
+              onPress={() => router.push('/explore')}
+              activeOpacity={0.7}
+            >
+              <SearchNormal1 size={18} color={dynamicIconColor} variant="Outline" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.glassIconButton,
+                {
+                  backgroundColor: dynamicBadgeBg,
+                  borderColor: dynamicBadgeBorder,
+                },
+              ]}
+              onPress={() => setThemeModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <SunFog size={18} color={dynamicIconColor} variant="Outline" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Theme Selection Modal */}
+        {/* Theme Modal */}
         <Modal
           visible={themeModalVisible}
           transparent={true}
@@ -445,24 +499,42 @@ export default function HomeScreen() {
             activeOpacity={1}
             onPress={() => setThemeModalVisible(false)}
           >
-            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-              <Text style={styles.modalTitle}>Choose Theme</Text>
-              
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: paperTheme.colors.elevation.level3,
+                  borderColor: dynamicGlassBorder,
+                },
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[styles.modalTitle, { color: paperTheme.colors.onSurface }]}>
+                Choose Theme
+              </Text>
+
               {[
                 { id: 'dark', label: 'Dark' },
                 { id: 'light', label: 'Light' },
                 { id: 'amoled', label: 'AMOLED' },
               ].map((item) => {
-                const isSelected = selectedThemeOption === item.id;
+                const isSelected = theme === item.id;
                 return (
                   <TouchableOpacity
                     key={item.id}
                     style={[
                       styles.themeOption,
-                      isSelected && styles.themeOptionActive,
+                      {
+                        backgroundColor: isSelected
+                          ? paperTheme.colors.primaryContainer
+                          : dynamicBadgeBg,
+                        borderColor: isSelected
+                          ? paperTheme.colors.primary
+                          : dynamicBadgeBorder,
+                      },
                     ]}
                     onPress={() => {
-                      setSelectedThemeOption(item.id as 'dark' | 'light' | 'amoled');
+                      setTheme(item.id as 'dark' | 'light' | 'amoled');
                       setThemeModalVisible(false);
                     }}
                     activeOpacity={0.8}
@@ -470,7 +542,11 @@ export default function HomeScreen() {
                     <Text
                       style={[
                         styles.themeOptionText,
-                        isSelected && styles.themeOptionTextActive,
+                        {
+                          color: isSelected
+                            ? paperTheme.colors.onPrimaryContainer
+                            : paperTheme.colors.onSurface,
+                        },
                       ]}
                     >
                       {item.label}
@@ -490,12 +566,12 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
+              colors={[paperTheme.colors.primary]}
+              tintColor={paperTheme.colors.primary}
             />
           }
         >
-          {/* Categories Pill Bar */}
+          {/* Dynamic Categories Bar */}
           <View style={styles.categoriesSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesScroll}>
               {categories.map((category) => {
@@ -507,10 +583,27 @@ export default function HomeScreen() {
                     activeOpacity={0.8}
                     style={[
                       styles.glassCategoryChip,
-                      isSelected && styles.glassCategoryChipActive,
+                      {
+                        backgroundColor: isSelected
+                          ? paperTheme.colors.primary
+                          : dynamicBadgeBg,
+                        borderColor: isSelected
+                          ? paperTheme.colors.primary
+                          : dynamicBadgeBorder,
+                      },
                     ]}
                   >
-                    <Text style={[styles.categoryText, isSelected && styles.categoryTextActive]}>
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        {
+                          color: isSelected
+                            ? paperTheme.colors.onPrimary
+                            : paperTheme.colors.onSurface,
+                          opacity: isSelected ? 1 : 0.7,
+                        },
+                      ]}
+                    >
                       {category.label}
                     </Text>
                   </TouchableOpacity>
@@ -519,19 +612,21 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
 
-          {/* Featured Showcase Section */}
+          {/* Featured Showcase */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleRow}>
-                <Star size={18} color={theme.colors.primary} variant="Bold" />
-                <Text style={styles.sectionTitle}>Featured Showcase</Text>
+                <Star size={18} color={paperTheme.colors.primary} variant="Bold" />
+                <Text style={[styles.sectionTitle, { color: paperTheme.colors.onSurface }]}>
+                  Featured Showcase
+                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => router.push('/explore')}
                 activeOpacity={0.7}
-                style={styles.exploreIconBtn}
+                style={[styles.exploreIconBtn, { backgroundColor: dynamicBadgeBg }]}
               >
-                <ArrowRight2 size={20} color={theme.colors.primary} variant="Outline" />
+                <ArrowRight2 size={20} color={paperTheme.colors.primary} variant="Outline" />
               </TouchableOpacity>
             </View>
 
@@ -556,14 +651,9 @@ export default function HomeScreen() {
               maxToRenderPerBatch={4}
               windowSize={5}
               removeClippedSubviews={true}
-              onScrollToIndexFailed={(info) => {
-                setTimeout(() => {
-                  featuredFlatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-                }, 500);
-              }}
             />
 
-            {/* Scroll Indicator */}
+            {/* Indicator */}
             {featuredWallpapers.length > 0 && (
               <View style={styles.indicatorContainer}>
                 {featuredWallpapers.map((_, index) => (
@@ -571,9 +661,10 @@ export default function HomeScreen() {
                     key={index}
                     style={[
                       styles.indicatorDot,
+                      { backgroundColor: isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.2)' },
                       index === activeRealIndex && [
                         styles.indicatorDotActive,
-                        { backgroundColor: theme.colors.primary },
+                        { backgroundColor: paperTheme.colors.primary },
                       ],
                     ]}
                   />
@@ -582,19 +673,21 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* Latest Section */}
+          {/* Fresh Drops */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleRow}>
-                <Flash size={18} color={theme.colors.primary} variant="Bold" />
-                <Text style={styles.sectionTitle}>Fresh Drops</Text>
+                <Flash size={18} color={paperTheme.colors.primary} variant="Bold" />
+                <Text style={[styles.sectionTitle, { color: paperTheme.colors.onSurface }]}>
+                  Fresh Drops
+                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => router.push('/explore')}
                 activeOpacity={0.7}
-                style={styles.exploreIconBtn}
+                style={[styles.exploreIconBtn, { backgroundColor: dynamicBadgeBg }]}
               >
-                <ArrowRight2 size={20} color={theme.colors.primary} variant="Outline" />
+                <ArrowRight2 size={20} color={paperTheme.colors.primary} variant="Outline" />
               </TouchableOpacity>
             </View>
 
@@ -611,19 +704,21 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Top Rated Section */}
+          {/* Top Rated */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleRow}>
-                <Heart size={18} color={theme.colors.primary} variant="Bold" />
-                <Text style={styles.sectionTitle}>Top Rated</Text>
+                <Heart size={18} color={paperTheme.colors.primary} variant="Bold" />
+                <Text style={[styles.sectionTitle, { color: paperTheme.colors.onSurface }]}>
+                  Top Rated
+                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => router.push('/explore')}
                 activeOpacity={0.7}
-                style={styles.exploreIconBtn}
+                style={[styles.exploreIconBtn, { backgroundColor: dynamicBadgeBg }]}
               >
-                <ArrowRight2 size={20} color={theme.colors.primary} variant="Outline" />
+                <ArrowRight2 size={20} color={paperTheme.colors.primary} variant="Outline" />
               </TouchableOpacity>
             </View>
 
@@ -640,12 +735,14 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Wallpapers Grid */}
+          {/* Grid View */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleRow}>
-                <Category size={18} color={theme.colors.primary} variant="Bold" />
-                <Text style={styles.sectionTitle}>Discover More</Text>
+                <Category size={18} color={paperTheme.colors.primary} variant="Bold" />
+                <Text style={[styles.sectionTitle, { color: paperTheme.colors.onSurface }]}>
+                  Discover More
+                </Text>
               </View>
             </View>
 
@@ -653,7 +750,13 @@ export default function HomeScreen() {
               {moreWallpapers.map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={styles.gridCard}
+                  style={[
+                    styles.gridCard,
+                    {
+                      backgroundColor: dynamicGlassBg,
+                      borderColor: dynamicGlassBorder,
+                    },
+                  ]}
                   onPress={() => navigateToWallpaper(item.id)}
                   activeOpacity={0.88}
                 >
@@ -675,9 +778,15 @@ export default function HomeScreen() {
                 onPress={loadMoreWallpapers}
                 disabled={loadingMore}
                 activeOpacity={0.8}
-                style={styles.glassLoadMoreBtn}
+                style={[
+                  styles.glassLoadMoreBtn,
+                  {
+                    backgroundColor: dynamicBadgeBg,
+                    borderColor: dynamicBadgeBorder,
+                  },
+                ]}
               >
-                <Text style={styles.loadMoreText}>
+                <Text style={[styles.loadMoreText, { color: paperTheme.colors.onSurface }]}>
                   {loadingMore ? 'Loading...' : 'Load More Wallpapers'}
                 </Text>
               </TouchableOpacity>
@@ -699,53 +808,67 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  /* Header Glass Bar */
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    borderRadius: 24,
+    borderWidth: 1,
   },
   headerBrand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
+  logoGradientRing: {
+    padding: 2,
+    borderRadius: 22,
+  },
   headerTextCol: {
     flexDirection: 'column',
+    gap: 2,
   },
   appTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h3,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
+    lineHeight: 22,
   },
-  subtitle: {
-    fontFamily: 'Nunito-Regular',
-    fontSize: FontSizes.caption,
-    opacity: 0.6,
+  subtitleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  subtitleBadgeText: {
+    fontFamily: 'Nunito-Bold',
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  actionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   glassIconButton: {
     padding: 10,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
 
   /* Theme Modal */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -753,21 +876,14 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 300,
-    backgroundColor: '#1E1E1E',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 10,
   },
   modalTitle: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.h4,
-    color: '#FFF',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -776,26 +892,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     marginVertical: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
-  },
-  themeOptionActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   themeOptionText: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.body,
-    color: '#FFF',
-    opacity: 0.7,
-  },
-  themeOptionTextActive: {
-    opacity: 1,
   },
 
-  /* Categories Section */
+  /* Categories */
   categoriesSection: {
     marginVertical: 8,
   },
@@ -807,21 +912,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  glassCategoryChipActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   categoryText: {
     fontFamily: 'Nunito-Bold',
     fontSize: FontSizes.caption,
-    opacity: 0.7,
-  },
-  categoryTextActive: {
-    opacity: 1,
   },
 
   /* Section Styling */
@@ -847,7 +942,6 @@ const styles = StyleSheet.create({
   exploreIconBtn: {
     padding: 6,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
 
   /* Scroll Indicator */
@@ -862,7 +956,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   indicatorDotActive: {
     width: 18,
@@ -884,9 +977,7 @@ const styles = StyleSheet.create({
     height: LIST_CARD_HEIGHT,
     borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 
   /* Grid Layout */
@@ -901,9 +992,7 @@ const styles = StyleSheet.create({
     height: GRID_CARD_HEIGHT,
     borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 
   /* Glass Overlays & Badges */
@@ -938,9 +1027,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   loadMoreText: {
     fontFamily: 'Nunito-Bold',
