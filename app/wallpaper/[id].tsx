@@ -22,15 +22,16 @@ import {
   Button,
   Portal,
   Dialog,
+  ProgressBar,
 } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { useThemeContext } from '../../contexts/ThemeContext';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as MediaLibrary from 'expo-media-library';
-import * as Sharing from 'expo-sharing';
 import WebView from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -45,7 +46,6 @@ import {
   Image as ImageIcon,
   Tag as TagIcon,
   Maximize4,
-  Export,
 } from 'iconsax-react-nativejs';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -68,7 +68,11 @@ export default function WallpaperScreen() {
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [showFallbackDialog, setShowFallbackDialog] = useState(false);
   const [selectedResolution, setSelectedResolution] = useState('original');
-  const [sharingLoading, setSharingLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [applyingLoading, setApplyingLoading] = useState(false);
+
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloadingModalVisible, setIsDownloadingModalVisible] = useState(false);
 
   const downloadResumableRef = useRef<FileSystem.DownloadResumable | null>(null);
 
@@ -194,15 +198,16 @@ export default function WallpaperScreen() {
     }
   };
 
-  const saveFileLocally = async (quality = 'original', onProgress?: (progress: number) => void): Promise<string | null> => {
+  const saveFileLocally = async (
+    quality = 'original',
+    onProgress?: (progress: number) => void
+  ): Promise<string | null> => {
     if (!wallpaper) return null;
     const downloadUrl = getDownloadUrl(quality);
 
     if (!downloadUrl) {
       throw new Error('Image URL is missing or invalid');
     }
-
-    const timestamp = new Date().getTime();
 
     let ext = 'jpg';
     if (wallpaper.file_type && wallpaper.file_type.includes('/')) {
@@ -217,18 +222,24 @@ export default function WallpaperScreen() {
       throw new Error('Cache directory is unavailable');
     }
 
-    const fileName = `shiori_${wallpaper.id}_${quality}_${timestamp}.${ext}`;
+    const fileName = `shiori_${wallpaper.id}_${quality}.${ext}`;
     const cleanCacheDir = cacheDir.endsWith('/') ? cacheDir : `${cacheDir}/`;
     const tempUri = `${cleanCacheDir}${fileName}`;
+
+    const existingFile = await FileSystem.getInfoAsync(tempUri);
+    if (existingFile.exists && existingFile.size && existingFile.size > 0) {
+      if (onProgress) onProgress(1);
+      return tempUri;
+    }
 
     downloadResumableRef.current = FileSystem.createDownloadResumable(
       downloadUrl,
       tempUri,
       {},
-      (downloadProgress) => {
+      (downloadProgressData) => {
         const progress =
-          downloadProgress.totalBytesWritten /
-          downloadProgress.totalBytesExpectedToWrite;
+          downloadProgressData.totalBytesWritten /
+          downloadProgressData.totalBytesExpectedToWrite;
         if (onProgress) {
           onProgress(isNaN(progress) || progress < 0 ? 0 : progress);
         }
@@ -257,7 +268,7 @@ export default function WallpaperScreen() {
           'Permission Required',
           'Shiori needs media library permissions to save wallpapers.'
         );
-        return null;
+        throw new Error('Media library permission denied');
       }
 
       const asset = await MediaLibrary.createAssetAsync(fileUri);
@@ -276,8 +287,25 @@ export default function WallpaperScreen() {
     }
   };
 
+  const cancelDownload = async () => {
+    if (downloadResumableRef.current) {
+      try {
+        await downloadResumableRef.current.cancelAsync();
+      } catch (e) {
+        // Ignored cancellation error
+      }
+      downloadResumableRef.current = null;
+    }
+    setDownloading(false);
+    setIsDownloadingModalVisible(false);
+    setDownloadProgress(0);
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Download canceled', ToastAndroid.SHORT);
+    }
+  };
+
   const downloadWallpaper = async (quality = 'original') => {
-    if (!wallpaper) return;
+    if (!wallpaper || downloading) return;
 
     setSelectedResolution(quality);
     setDownloadDialogVisible(false);
@@ -299,19 +327,20 @@ export default function WallpaperScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (Platform.OS === 'android') {
-      ToastAndroid.show('Downloading wallpaper...', ToastAndroid.SHORT);
-    }
+    setDownloading(true);
+    setDownloadProgress(0);
+    setIsDownloadingModalVisible(true);
 
     try {
-      const localUri = await saveFileLocally(quality);
+      const localUri = await saveFileLocally(quality, (progress) => {
+        setDownloadProgress(progress);
+      });
 
       if (!localUri) throw new Error('Download failed - invalid URI');
 
       const savedAssetInfo = await saveToGallery(localUri);
 
       if (savedAssetInfo) {
-        await FileSystem.deleteAsync(localUri, { idempotent: true });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         if (Platform.OS === 'android') {
@@ -321,53 +350,63 @@ export default function WallpaperScreen() {
         }
       }
     } catch (error: any) {
+      if (
+        error?.message?.includes('canceled') ||
+        error?.message?.includes('cancelled')
+      ) {
+        return;
+      }
       console.error('Download error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       setDownloadError(`Failed to download: ${error.message || 'Unknown error'}`);
       setShowFallbackDialog(true);
+    } finally {
+      setDownloading(false);
+      setIsDownloadingModalVisible(false);
     }
   };
 
-  const shareWallpaperFile = async () => {
-    if (!wallpaper) return;
+  const applyWallpaper = async () => {
+    if (!wallpaper || applyingLoading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    setSharingLoading(true);
-    let localUri: string | null = null;
+    setApplyingLoading(true);
+
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Preparing wallpaper...', ToastAndroid.SHORT);
+    }
 
     try {
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Sharing is not supported on this device', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Notice', 'Sharing is not supported on this device.');
-        }
-        return;
-      }
+      // 1. Download/Cache file locally using existing helper function
+      const localUri = await saveFileLocally('original');
+      if (!localUri) throw new Error('Failed to prepare wallpaper image');
 
-      localUri = await saveFileLocally('original');
-      if (!localUri) throw new Error('Failed to cache image for sharing');
-
-      const mimeType = wallpaper.file_type || 'image/jpeg';
-
-      await Sharing.shareAsync(localUri, {
-        mimeType,
-        dialogTitle: 'Share Wallpaper',
-      });
-    } catch (error: any) {
-      console.error('Share wallpaper error:', error);
       if (Platform.OS === 'android') {
-        ToastAndroid.show('Failed to share wallpaper image', ToastAndroid.SHORT);
+        // 2. Convert file:// URI to content:// URI so Android OS can read it
+        const contentUri = await FileSystem.getContentUriAsync(localUri);
+
+        // 3. Launch Android system wallpaper launcher chooser
+        await IntentLauncher.startActivityAsync('android.intent.action.ATTACH_DATA', {
+          data: contentUri,
+          type: 'image/*',
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        });
       } else {
-        Alert.alert('Error', 'Failed to prepare wallpaper image for sharing.');
+        Alert.alert(
+          'Set Wallpaper',
+          'On iOS, please download the image and set it as wallpaper via your Photos app.'
+        );
+      }
+    } catch (error: any) {
+      console.error('Apply wallpaper error:', error);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Failed to launch wallpaper application', ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Error', 'Failed to prepare wallpaper image.');
       }
     } finally {
-      if (localUri) {
-        await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
-      }
-      setSharingLoading(false);
+      setApplyingLoading(false);
     }
   };
 
@@ -590,9 +629,14 @@ export default function WallpaperScreen() {
                 <TouchableOpacity
                   style={styles.innerTouchable}
                   onPress={() => setDownloadDialogVisible(true)}
+                  disabled={downloading}
                   activeOpacity={0.7}
                 >
-                  <ArrowCircleDown2 size={20} color={paperTheme.colors.primary} variant="Broken" />
+                  {downloading ? (
+                    <ActivityIndicator size="small" color={paperTheme.colors.primary} />
+                  ) : (
+                    <ArrowCircleDown2 size={20} color={paperTheme.colors.primary} variant="Broken" />
+                  )}
                   <Text style={[styles.buttonLabel, { color: paperTheme.colors.onSurface }]}>
                     Download
                   </Text>
@@ -608,17 +652,17 @@ export default function WallpaperScreen() {
               >
                 <TouchableOpacity
                   style={styles.innerTouchable}
-                  onPress={shareWallpaperFile}
-                  disabled={sharingLoading}
+                  onPress={applyWallpaper}
+                  disabled={applyingLoading}
                   activeOpacity={0.7}
                 >
-                  {sharingLoading ? (
+                  {applyingLoading ? (
                     <ActivityIndicator size="small" color={paperTheme.colors.primary} />
                   ) : (
-                    <Export size={20} color={paperTheme.colors.primary} variant="Broken" />
+                    <ImageIcon size={20} color={paperTheme.colors.primary} variant="Broken" />
                   )}
                   <Text style={[styles.buttonLabel, { color: paperTheme.colors.onSurface }]}>
-                    Share File
+                    Apply Wallpaper
                   </Text>
                 </TouchableOpacity>
               </BlurView>
@@ -663,6 +707,29 @@ export default function WallpaperScreen() {
                 <Button onPress={() => setDownloadDialogVisible(false)}>
                   Cancel
                 </Button>
+              </Dialog.Actions>
+            </Dialog>
+
+            {/* Dismissable Download Progress Modal */}
+            <Dialog
+              visible={isDownloadingModalVisible}
+              onDismiss={cancelDownload}
+              dismissable={true}
+              style={styles.dialogContainer}
+            >
+              <Dialog.Title>Downloading Wallpaper</Dialog.Title>
+              <Dialog.Content>
+                <Text variant="bodyMedium" style={{ marginBottom: 12 }}>
+                  {Math.round(downloadProgress * 100)}% completed
+                </Text>
+                <ProgressBar
+                  progress={downloadProgress}
+                  color={paperTheme.colors.primary}
+                  style={{ height: 8, borderRadius: 4 }}
+                />
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={cancelDownload}>Cancel</Button>
               </Dialog.Actions>
             </Dialog>
 
@@ -860,6 +927,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 80,
   },
   interactiveTag: {
     borderRadius: 20,

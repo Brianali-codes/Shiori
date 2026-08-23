@@ -4,10 +4,6 @@ import {
   View,
   RefreshControl,
   ScrollView,
-  Alert,
-  Platform,
-  Linking,
-  ToastAndroid,
   TouchableOpacity,
   Dimensions,
   StyleProp,
@@ -15,7 +11,7 @@ import {
 } from 'react-native';
 import { Card, Text, ActivityIndicator, useTheme, Searchbar, Chip } from 'react-native-paper';
 import { ThemedView } from '@/components/ThemedComponents';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { wallhavenAPI, WallpaperPreview } from '../services/wallhaven';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,9 +28,8 @@ import {
   Filter,
   ArrowLeft2,
   ArrowRight2,
+  EmojiHappy,
 } from 'iconsax-react-nativejs';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
 import { FontSizes } from '@/constants/FontSizes';
 
@@ -53,7 +48,7 @@ interface MasonryItem extends WallpaperPreview {
 const MasonryGrid: React.FC<{
   data: MasonryItem[];
   renderItem: (item: MasonryItem, index: number) => React.ReactElement;
-  refreshControl?: React.ReactElement;
+  refreshControl?: React.ReactElement<any>;
   ListFooterComponent?: () => React.ReactElement | null;
   contentContainerStyle?: StyleProp<ViewStyle>;
 }> = ({ data, renderItem, refreshControl, ListFooterComponent, contentContainerStyle }) => {
@@ -99,46 +94,49 @@ const MasonryGrid: React.FC<{
 };
 
 export default function ExploreScreen() {
+  const params = useLocalSearchParams<{ q?: string }>();
+  const tagQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+
   const [wallpapers, setWallpapers] = useState<MasonryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(tagQuery || '');
   const [selectedSort, setSelectedSort] = useState('date_added');
   const [selectedOrder, setSelectedOrder] = useState('desc');
-  const [showNsfwContent, setShowNsfwContent] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  // Dynamic clearance for floating tab bar
   const floatingTabBarClearance = 60 + Math.max(insets.bottom + 8, 18) + 16;
 
-  // Load NSFW setting and favorites on mount
+  // Sync route query parameter updates (e.g. navigating from a tag click)
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const nsfwSetting = await AsyncStorage.getItem('showNsfwContent');
-        if (nsfwSetting !== null) {
-          setShowNsfwContent(nsfwSetting === 'true');
-        }
+    if (tagQuery !== undefined) {
+      setSearchQuery(tagQuery);
+    }
+  }, [tagQuery]);
 
-        const savedFavorites = await AsyncStorage.getItem('favorites');
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const savedFavorites = await AsyncStorage.getItem('@shiori_favorites');
         if (savedFavorites) {
           const parsedFavorites: WallpaperPreview[] = JSON.parse(savedFavorites);
           const favoriteIds = parsedFavorites.map((item) => String(item.id));
           setFavorites(favoriteIds);
         }
       } catch (error) {
-        console.error('Failed to load settings:', error);
+        console.error('Failed to load favorites:', error);
       }
     };
 
-    loadSettings();
+    loadFavorites();
   }, []);
 
   const sortOptions = [
@@ -156,6 +154,7 @@ export default function ExploreScreen() {
   ];
 
   const calculateItemHeight = (resolution: string): number => {
+    if (!resolution) return 200;
     const [width, height] = resolution.split('x').map(Number);
     if (!width || !height) return 200;
 
@@ -199,16 +198,9 @@ export default function ExploreScreen() {
   const fetchWallpapers = useCallback(
     async (targetPage: number, isRefresh = false) => {
       try {
+        setErrorMessage(null);
         if (!isRefresh && targetPage === 1) {
           setLoading(true);
-        }
-
-        if (showNsfwContent && !wallhavenAPI.hasApiKey()) {
-          Alert.alert(
-            'API Key Required',
-            'You need to set a Wallhaven API key in Settings to access NSFW content.',
-            [{ text: 'OK' }]
-          );
         }
 
         const response = await wallhavenAPI.search({
@@ -216,8 +208,14 @@ export default function ExploreScreen() {
           sorting: selectedSort as any,
           order: selectedOrder as any,
           page: targetPage,
-          purity: showNsfwContent ? (wallhavenAPI.hasApiKey() ? '111' : '100') : '100',
+          purity: '100', // Strictly SFW only
         });
+
+        if (!response?.data || response.data.length === 0) {
+          setWallpapers([]);
+          setHasMore(false);
+          return;
+        }
 
         const wallpapersWithMasonryData: MasonryItem[] = response.data.map((wallpaper, index) => ({
           ...wallpaper,
@@ -227,15 +225,17 @@ export default function ExploreScreen() {
 
         setWallpapers(wallpapersWithMasonryData);
         setHasMore(response.data.length > 0);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error loading wallpapers:', error);
+        setErrorMessage(error?.message || 'Unable to load wallpapers. Please check your connection.');
+        setWallpapers([]);
       } finally {
         setLoading(false);
         setLoadingMore(false);
         setRefreshing(false);
       }
     },
-    [searchQuery, selectedSort, selectedOrder, showNsfwContent]
+    [searchQuery, selectedSort, selectedOrder]
   );
 
   useEffect(() => {
@@ -244,7 +244,7 @@ export default function ExploreScreen() {
     } else {
       fetchWallpapers(1);
     }
-  }, [searchQuery, selectedSort, selectedOrder, showNsfwContent]);
+  }, [searchQuery, selectedSort, selectedOrder]);
 
   useEffect(() => {
     fetchWallpapers(page);
@@ -289,7 +289,7 @@ export default function ExploreScreen() {
         >
           <View style={styles.wallpaperContainer}>
             <Card.Cover
-              source={{ uri: item.thumbs.large }}
+              source={{ uri: item.thumbs?.large || item.thumbs?.original }}
               style={[styles.wallpaperImage, { height: item.height }]}
             />
 
@@ -445,6 +445,37 @@ export default function ExploreScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
+          ) : wallpapers.length === 0 ? (
+            <ScrollView
+              contentContainerStyle={[styles.emptyScrollContent, { paddingBottom: floatingTabBarClearance }]}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.emptyContainer}>
+                <SearchNormal1 size={52} color={theme.colors.primary} variant="Broken" style={styles.emptyIcon} />
+                <Text style={[styles.emptyTitle, { color: theme.colors.onSurface, fontFamily: 'Nunito-Bold' }]}>
+                  {errorMessage ? 'Connection Error' : 'No Wallpapers Found'}
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant, fontFamily: 'Nunito-Medium' }]}>
+                  {errorMessage
+                    ? errorMessage
+                    : searchQuery
+                    ? `No results match "${searchQuery}". Try using different terms or resetting filters.`
+                    : 'No wallpapers were found for the selected category or filters.'}
+                </Text>
+
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    style={[styles.clearSearchButton, { backgroundColor: theme.colors.primaryContainer }]}
+                    onPress={() => setSearchQuery('')}
+                  >
+                    <Text style={[styles.clearSearchText, { color: theme.colors.primary, fontFamily: 'Nunito-Bold' }]}>
+                      Clear Search
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ScrollView>
           ) : (
             <MasonryGrid
               data={wallpapers}
@@ -575,6 +606,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  emptyIcon: {
+    opacity: 0.8,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: FontSizes.body,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: FontSizes.body,
+    textAlign: 'center',
+    opacity: 0.7,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  clearSearchButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  clearSearchText: {
+    fontSize: FontSizes.body,
   },
   masonryContainer: {
     flexDirection: 'row',

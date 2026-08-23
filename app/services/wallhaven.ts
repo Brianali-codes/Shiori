@@ -1,6 +1,5 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
 // Types
 export interface Uploader {
@@ -97,7 +96,7 @@ export interface UserSettings {
   user_blacklist: string[];
 }
 
-// Fixed: Wallhaven only accepts whole-number aspect ratios (removed invalid 9x19.5, 9x20, 9x21)
+// Fixed: Wallhaven only accepts whole-number aspect ratios
 const DEFAULT_PORTRAIT_RATIOS = '9x16,10x16,9x18';
 
 // Client runtime check helper
@@ -124,11 +123,10 @@ const safeSetItem = async (key: string, value: string): Promise<void> => {
 
 class WallhavenAPI {
   private baseURL = 'https://wallhaven.cc/api/v1';
-  private corsProxy = 'https://corsproxy.io/?';
   private apiKey?: string;
   private highQualityMode: boolean = false;
 
-  // In-memory cache to prevent hitting CORS proxy rate-limits on hot reloads
+  // In-memory cache to prevent hitting rate-limits on hot reloads
   private cache = new Map<string, { data: WallhavenSearchResponse; timestamp: number }>();
   private CACHE_TTL = 3 * 60 * 1000; // 3 minutes cache lifetime
 
@@ -174,8 +172,7 @@ class WallhavenAPI {
   }
 
   /**
-   * Constructs target URL and applies CORS proxy conditionally when running on web (Expo Web).
-   * Direct API calls are used natively on iOS/Android production builds.
+   * Constructs direct target URL for production deployment.
    */
   private buildUrl(endpoint: string, params: Record<string, any> = {}): string {
     const combinedParams = this.apiKey ? { ...params, apikey: this.apiKey } : params;
@@ -188,13 +185,7 @@ class WallhavenAPI {
     });
 
     const queryString = queryParams.toString();
-    const directUrl = `${this.baseURL}${endpoint}${queryString ? `?${queryString}` : ''}`;
-
-    if (Platform.OS === 'web') {
-      return `${this.corsProxy}${encodeURIComponent(directUrl)}`;
-    }
-
-    return directUrl;
+    return `${this.baseURL}${endpoint}${queryString ? `?${queryString}` : ''}`;
   }
 
   private processWallpaperData(data: WallpaperPreview | WallpaperPreview[]): WallpaperPreview | WallpaperPreview[] {

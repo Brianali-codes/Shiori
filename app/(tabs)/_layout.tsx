@@ -123,7 +123,6 @@ function TabBar() {
 
       <Tabs.Screen name="favorites" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="bug-report" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="premium" options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }

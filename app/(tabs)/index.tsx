@@ -10,9 +10,11 @@ import {
   RefreshControl,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Animated,
+  Modal,
 } from 'react-native';
 import {
-  SearchNormal1,
+  SunFog,
   Heart,
   Star,
   Flash,
@@ -28,7 +30,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { FontSizes } from '@/constants/FontSizes';
-import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get('window');
 const LIST_CARD_WIDTH = width * 0.42;
@@ -50,6 +51,42 @@ const categories = [
 interface FeaturedItem extends WallpaperPreview {
   virtualId?: string;
 }
+
+// Skeleton Component with Pulse Animation
+const SkeletonItem = ({ style }: { style: any }) => {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.7,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity,
+          backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        },
+      ]}
+    />
+  );
+};
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -75,6 +112,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  // Theme modal state
+  const [themeModalVisible, setThemeModalVisible] = useState(false);
+  const [selectedThemeOption, setSelectedThemeOption] = useState<'dark' | 'light' | 'amoled'>('dark');
+
   // Featured Auto-Scroll & Indicator state
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const featuredFlatListRef = useRef<FlatList<FeaturedItem>>(null);
@@ -82,10 +123,10 @@ export default function HomeScreen() {
   // Guard against duplicate concurrent fetches
   const isFetchingRef = useRef(false);
 
-  // Generate virtual dataset for infinite looping
+  // Generate virtual dataset for infinite looping (reduced multiplier to 30)
   const displayFeaturedWallpapers: FeaturedItem[] = useMemo(() => {
     if (featuredWallpapers.length <= 1) return featuredWallpapers;
-    return Array.from({ length: 600 }, (_, i) => ({
+    return Array.from({ length: 30 }, (_, i) => ({
       ...featuredWallpapers[i % featuredWallpapers.length],
       virtualId: `${featuredWallpapers[i % featuredWallpapers.length].id}-v-${i}`,
     }));
@@ -190,7 +231,7 @@ export default function HomeScreen() {
   // Set initial scroll position to middle set for infinite loop headroom
   useEffect(() => {
     if (featuredWallpapers.length > 1) {
-      const initialIndex = Math.floor(300 / featuredWallpapers.length) * featuredWallpapers.length;
+      const initialIndex = Math.floor(15 / featuredWallpapers.length) * featuredWallpapers.length;
       setFeaturedIndex(initialIndex);
       setTimeout(() => {
         featuredFlatListRef.current?.scrollToIndex({
@@ -253,41 +294,114 @@ export default function HomeScreen() {
     }
   };
 
-  const navigateToWallpaper = (id: string) => router.push(`/wallpaper/${id}`);
+  const navigateToWallpaper = useCallback(
+    (id: string) => router.push(`/wallpaper/${id}`),
+    [router]
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadWallpapers(true);
   };
 
-  const renderListCard = ({ item }: { item: WallpaperPreview }) => (
-    <TouchableOpacity
-      style={styles.listCard}
-      onPress={() => navigateToWallpaper(item.id)}
-      activeOpacity={0.88}
-    >
-      <Image source={{ uri: item.thumbs.large }} style={styles.cardImage} />
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
-        style={styles.cardGradientCompact}
+  // Memoized render function to fix infinite update loop
+  const renderListCard = useCallback(
+    ({ item }: { item: WallpaperPreview }) => (
+      <TouchableOpacity
+        style={styles.listCard}
+        onPress={() => navigateToWallpaper(item.id)}
+        activeOpacity={0.88}
       >
-        <View style={styles.glassBadgeContainerCompact}>
-          <Text style={styles.badgeTextSmall}>{item.resolution}</Text>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
+        <Image source={{ uri: item.thumbs.large }} style={styles.cardImage} />
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          style={styles.cardGradientCompact}
+        >
+          <View style={styles.glassBadgeContainerCompact}>
+            <Text style={styles.badgeTextSmall}>{item.resolution}</Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    ),
+    [navigateToWallpaper]
   );
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.loader}>
-        <LottieView
-          source={require('../../assets/animations/loader.json')}
-          autoPlay
-          loop
-          style={{ width: 140, height: 140 }}
-        />
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ThemedView style={styles.container}>
+          <StatusBar style="light" />
+          <Stack.Screen options={{ headerShown: false }} />
+
+          {/* Header Skeleton */}
+          <View style={styles.headerContainer}>
+            <View style={styles.headerBrand}>
+              <SkeletonItem style={{ width: 40, height: 40, borderRadius: 20 }} />
+              <View style={styles.headerTextCol}>
+                <SkeletonItem style={{ width: 80, height: 18, borderRadius: 4, marginBottom: 6 }} />
+                <SkeletonItem style={{ width: 110, height: 12, borderRadius: 4 }} />
+              </View>
+            </View>
+            <SkeletonItem style={{ width: 40, height: 40, borderRadius: 16 }} />
+          </View>
+
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* Categories Pills Skeleton */}
+            <View style={styles.categoriesSection}>
+              <View style={[styles.categoriesScroll, { flexDirection: 'row' }]}>
+                {[1, 2, 3, 4].map((i) => (
+                  <SkeletonItem key={i} style={{ width: 70, height: 34, borderRadius: 20 }} />
+                ))}
+              </View>
+            </View>
+
+            {/* Featured Showcase Skeleton */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <SkeletonItem style={{ width: 150, height: 20, borderRadius: 6 }} />
+              </View>
+              <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
+                {[1, 2, 3].map((i) => (
+                  <SkeletonItem
+                    key={i}
+                    style={styles.listCard}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Fresh Drops Skeleton */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <SkeletonItem style={{ width: 120, height: 20, borderRadius: 6 }} />
+              </View>
+              <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
+                {[1, 2, 3].map((i) => (
+                  <SkeletonItem
+                    key={i}
+                    style={styles.listCard}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Discover More Grid Skeleton */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <SkeletonItem style={{ width: 130, height: 20, borderRadius: 6 }} />
+              </View>
+              <View style={styles.gridContainer}>
+                {[1, 2, 3, 4].map((i) => (
+                  <SkeletonItem
+                    key={i}
+                    style={styles.gridCard}
+                  />
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+        </ThemedView>
+      </SafeAreaView>
     );
   }
 
@@ -312,12 +426,61 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.glassIconButton}
-            onPress={() => router.push('/explore')}
+            onPress={() => setThemeModalVisible(true)}
             activeOpacity={0.7}
           >
-            <SearchNormal1 size={18} color="#FFF" variant="Outline" />
+            <SunFog size={18} color="#FFF" variant="Outline" />
           </TouchableOpacity>
         </View>
+
+        {/* Theme Selection Modal */}
+        <Modal
+          visible={themeModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setThemeModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setThemeModalVisible(false)}
+          >
+            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+              <Text style={styles.modalTitle}>Choose Theme</Text>
+              
+              {[
+                { id: 'dark', label: 'Dark' },
+                { id: 'light', label: 'Light' },
+                { id: 'amoled', label: 'AMOLED' },
+              ].map((item) => {
+                const isSelected = selectedThemeOption === item.id;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.themeOption,
+                      isSelected && styles.themeOptionActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedThemeOption(item.id as 'dark' | 'light' | 'amoled');
+                      setThemeModalVisible(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.themeOptionText,
+                        isSelected && styles.themeOptionTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         <ScrollView
           style={styles.scrollView}
@@ -389,6 +552,10 @@ export default function HomeScreen() {
                 offset: SNAP_INTERVAL * index,
                 index,
               })}
+              initialNumToRender={4}
+              maxToRenderPerBatch={4}
+              windowSize={5}
+              removeClippedSubviews={true}
               onScrollToIndexFailed={(info) => {
                 setTimeout(() => {
                   featuredFlatListRef.current?.scrollToIndex({ index: info.index, animated: true });
@@ -573,6 +740,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+
+  /* Theme Modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 300,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontFamily: 'Nunito-Bold',
+    fontSize: FontSizes.h4,
+    color: '#FFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  themeOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+  },
+  themeOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  themeOptionText: {
+    fontFamily: 'Nunito-Bold',
+    fontSize: FontSizes.body,
+    color: '#FFF',
+    opacity: 0.7,
+  },
+  themeOptionTextActive: {
+    opacity: 1,
   },
 
   /* Categories Section */
