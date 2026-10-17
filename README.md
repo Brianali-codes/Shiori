@@ -20,6 +20,7 @@
   <strong>A modern React Native mobile application for discovering and using beautiful wallpapers powered by the Wallhaven API.</strong>
 </p>
 
+[![Get it on Orion Store](https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png)](https://rookieenough.github.io/Orion-Data/redirect.html?id=shiori&icon=https%3A%2F%2Fraw.githubusercontent.com%2FBrianali-codes%2FShiori%2Fmaster%2Fassets%2Fimages%2Fshiori-icon.png)
 
 
 ---
